@@ -443,54 +443,74 @@ export function parseSaveFile(buf) {
   const normalTickets = r.readInt();
   const rareTickets   = r.readInt();
 
+  console.log('A: before CatsGatyaSeen pos='+r.pos);
   skipCatsGatyaSeen(r, gv, catCount);
+  console.log('B: after CatsGatyaSeen pos='+r.pos);
   skipSpecialSkillsGatyaSeen(r);
+  console.log('C: after SpecialSkillsGatyaSeen pos='+r.pos);
   skipCatsStorage(r, gv);
+  console.log('D: after CatsStorage pos='+r.pos);
   skipEventChapters(r, gv);
+  console.log('E: after EventChapters pos='+r.pos);
 
   r.readInt(); r.readInt();
   if (gv >= 20)            r.readIntList(36);
   if (gv >= 20 && gv <= 25) r.readIntList(110);
   else if (gv >= 26)        r.readIntList();
+  console.log('F: after intlists pos='+r.pos);
 
   skipGatyaRareNormalSeed(r, gv);
   r.readBool();
   r.readBoolList(7);
   r.readInt();
+  console.log('G: after gatya/bool pos='+r.pos);
 
   readDst(r, gv, isJP);
   r.readDate();
   skipGatya2(r);
+  console.log('H: after gatya2 pos='+r.pos);
 
   if (notJP) r.readString();
   r.readStringList();
+  console.log('I: after order_ids pos='+r.pos);
 
   if (notJP) {
     r.readDouble(); r.readDouble(); r.readDouble();
     r.readStringList(); r.readBool(); r.readInt();
   }
+  console.log('J: after notJP block pos='+r.pos);
 
   skipLineUps2(r, gv);
+  console.log('K: after LineUps2 pos='+r.pos);
   skipEventLegendRestrictions(r, gv);
+  console.log('L: after LegendRestrictions pos='+r.pos);
 
   if (gv <= 37) { r.readIntList(7); r.readIntList(7); r.readIntList(7); }
 
   r.readDouble(); r.readDouble(); r.readDouble(); r.readDouble();
   skipGatyaTradeProgress(r);
+  console.log('M: after tradeProgress pos='+r.pos);
 
   if (gv <= 37) r.readStringList();
   if (notJP) r.readDouble(); else r.readInt();
+  console.log('N: after getTimeSave2 pos='+r.pos);
 
   if (gv >= 20 && gv <= 25) r.readBoolList(12);
   else if (gv >= 26 && gv < 39) r.readBoolList();
+  console.log('O: after boollist pos='+r.pos);
 
   skipCatsMaxUpgradeLevels(r, gv, catCount);
+  console.log('P: after MaxUpgradeLevels pos='+r.pos);
   skipSpecialSkillsMaxLevels(r);
+  console.log('Q: after SpecialSkillsMaxLevels pos='+r.pos);
   skipUserRankRewards(r, gv);
+  console.log('R: after UserRankRewards pos='+r.pos);
   if (!notJP) r.readDouble();
   skipCatsUnlockedForms(r, gv, catCount);
+  console.log('S: after UnlockedForms pos='+r.pos);
 
   r.readString(); r.readString(); r.readBool(); // transfer_code, confirmation_code, transfer_flag
+  console.log('T: after transfer fields pos='+r.pos);
 
   let inquiryCode = '', playTime = 0;
 
