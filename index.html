@@ -100,7 +100,7 @@
 </head>
 <body>
 <div class="card">
-  <h1>🐱 引き継ぎコード発行</h1>
+  <h1>引き継ぎコード発行</h1>
   <p class="subtitle">セーブファイルをアップロードして引き継ぎコードを取得</p>
 
   <div class="drop-zone" id="dropZone">
@@ -189,10 +189,12 @@
       let data;
       try { data = JSON.parse(text1); }
       catch { throw new Error(`サーバーエラー (${res.status}): ${text1.slice(0, 300)}`); }
-      if (!data.success) throw new Error(data.error);
-
       hideStatus();
-      renderParseResult(data);
+      if (data._hashDebug) renderParseResult(data);
+      if (!data.success) {
+        showStatus('error', `❌ ${data.error}`);
+        return;
+      }
     } catch (e) {
       showStatus('error', `❌ ${e.message}`);
     } finally {
