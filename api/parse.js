@@ -1,6 +1,6 @@
 // api/parse.js
-// セーブファイルをパースしてデータを返すだけ（デバッグ用）
 import { parseSaveFile } from './_lib/saveParser.js';
+import { computeSaveHash } from './_lib/crypto.js';
 
 export const config = { api: { bodyParser: false } };
 
@@ -22,6 +22,14 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'ファイルの読み取りに失敗' });
   }
 
+  // ハッシュデバッグ: 末尾32バイトと各CCの計算値を比較
+  const storedHash = body.slice(body.length - 32).toString('utf-8');
+  const hashDebug = {};
+  for (const cc of ['jp', 'en', 'kr', 'tw']) {
+    const computed = computeSaveHash(cc, body);
+    hashDebug[cc] = { computed, match: computed === storedHash };
+  }
+
   try {
     const d = parseSaveFile(body);
     return res.status(200).json({
@@ -38,8 +46,13 @@ export default async function handler(req, res) {
       platinumTickets: d.platinumTickets,
       legendTickets: d.legendTickets,
       fileSizeBytes: body.length,
+      _hashDebug: { storedHash, hashDebug },
     });
   } catch (e) {
-    return res.status(500).json({ success: false, error: e.message });
+    return res.status(500).json({
+      success: false,
+      error: e.message,
+      _hashDebug: { storedHash, hashDebug },
+    });
   }
 }
