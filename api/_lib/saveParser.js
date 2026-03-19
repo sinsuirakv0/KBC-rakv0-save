@@ -409,32 +409,42 @@ export function parseSaveFile(buf) {
 
   if (gv >= 20 && gv <= 25) r.readIntList(231); else r.readIntList();
 
+  console.log('gv='+gv+' isJP='+isJP+' pos_after_header='+r.pos);
   const catCount = skipCatsUnlocked(r, gv);
+  console.log('catCount='+catCount+' pos_after_CatsUnlocked='+r.pos);
   skipCatsUpgrade(r, gv, catCount);
+  console.log('pos_after_CatsUpgrade='+r.pos);
   skipCatsCurrentForm(r, gv, catCount);
+  console.log('pos_after_CatsCurrentForm='+r.pos);
   skipSpecialSkills(r);
+  console.log('pos_after_SpecialSkills='+r.pos);
 
   if (gv <= 25)       { r.readIntList(5); r.readIntList(5); }
   else if (gv === 26) { r.readIntList(6); r.readIntList(6); }
   else                { r.readIntList();  r.readIntList(); }
 
   skipBattleItems(r);
+  console.log('pos_after_BattleItems='+r.pos);
   if (gv <= 26) r.readIntList(17); else r.readIntList();
 
   r.readIntList(20); r.readIntList(1); r.readIntList(1);
   skipBattleItemsLocked(r);
+  console.log('pos_after_BattleItemsLocked='+r.pos);
 
   readDst(r, gv, isJP);
   r.readDate();
   skipStoryTreasureFestival(r);
   readDst(r, gv, isJP);
   r.readDate();
+  console.log('pos_after_dates='+r.pos);
 
   if (gv <= 37) r.readInt();
   r.readInt(); r.readInt(); r.readInt(); r.readInt(); r.readInt(); r.readInt();
   r.readString(); // save_data_4_hash
 
+  console.log('pos_before_MySale='+r.pos);
   skipMySale(r);
+  console.log('pos_after_MySale='+r.pos);
   r.readIntList(2);
 
   if (gv <= 37) { r.readInt(); r.readBool(); }
