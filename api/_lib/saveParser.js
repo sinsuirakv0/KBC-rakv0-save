@@ -528,6 +528,11 @@ export function parseSaveFile(buf) {
   skipCatsUnlockedForms(r, gv, catCount);
   console.log('S: after UnlockedForms pos='+r.pos);
 
+  const _tp = r.pos;
+  const _tb = [];
+  for (let _i = 0; _i < 20; _i++) _tb.push(r.buf[_tp+_i].toString(16).padStart(2,'0'));
+  console.log('T: before transfer_code pos='+_tp+' bytes: '+_tb.join(' '));
+  console.log('T: int32='+r.buf.readInt32LE(_tp));
   r.readString(); r.readString(); r.readBool(); // transfer_code, confirmation_code, transfer_flag
   console.log('T: after transfer fields pos='+r.pos);
 
