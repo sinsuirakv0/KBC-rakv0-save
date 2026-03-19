@@ -532,8 +532,47 @@ export function parseSaveFile(buf) {
   L('42 after CatsUnlockedForms pos='+r.pos);
 
   L('43 before transfer_code pos='+r.pos+' peek='+peek(r));
-  r.readString(); r.readString(); r.readBool();
-  L('44 after transfer_fields pos='+r.pos);
+  // 80バイト詳細ダンプ
+  {
+    const _dp = r.pos;
+    const _hexArr = [];
+    for (let _i = 0; _i < 80; _i++) _hexArr.push(r.buf[_dp+_i].toString(16).padStart(2,'0'));
+    L('DUMP80: '+_hexArr.join(' '));
+    // 各オフセットでint解釈
+    for (let _off = 0; _off <= 16; _off += 4) {
+      const _v = r.buf.readInt32LE(_dp + _off);
+      L('  int@+'+_off+'='+_v);
+    }
+    // ASCII文字列の候補を探す（長さ1-30のところ）
+    for (let _off = 0; _off <= 20; _off++) {
+      const _len = r.buf.readInt32LE(_dp + _off);
+      if (_len > 0 && _len <= 30) {
+        const _str = r.buf.slice(_dp+_off+4, _dp+_off+4+_len).toString('utf-8');
+        L('  candidate string @+'+_off+' len='+_len+' val="'+_str+'"');
+      }
+    }
+  }
+  // 安全に読む（長すぎたらスキップ）
+  try {
+    const _tc_len = r.buf.readInt32LE(r.pos);
+    if (_tc_len >= 0 && _tc_len <= 200) {
+      r.readString();
+    } else {
+      r.readInt(); // lengthだけ消費
+      L('43w transfer_code len='+_tc_len+' skipped');
+    }
+    const _cc_len = r.buf.readInt32LE(r.pos);
+    if (_cc_len >= 0 && _cc_len <= 200) {
+      r.readString();
+    } else {
+      r.readInt();
+      L('43w confirmation_code len='+_cc_len+' skipped');
+    }
+    r.readBool();
+    L('44 after transfer_fields pos='+r.pos);
+  } catch(e) {
+    L('44 transfer_fields error: '+e.message+' pos='+r.pos);
+  }
 
   let inquiryCode = '', playTime = 0;
 
