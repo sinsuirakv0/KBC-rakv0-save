@@ -665,6 +665,17 @@ export function parseSaveFile(buf) {
 
   const late = _parseLaterSections(r, gv, notJP);
 
+  return {
+    cc, gameVersion: gv, inquiryCode,
+    energyPenaltyTimestamp,
+    passwordRefreshToken: late.passwordRefreshToken,
+    playTime, userRank: 0,
+    catfood, rareTickets,
+    platinumTickets: late.platinumTickets,
+    legendTickets: late.legendTickets,
+    rawBytes: buf,
+  };
+}
 
 // ─── gv>=40 以降の後半セクション ─────────────────────────────────────────────
 
