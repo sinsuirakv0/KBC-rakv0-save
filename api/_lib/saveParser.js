@@ -495,13 +495,20 @@ export function parseSaveFile(buf) {
   let inquiryCode = '', playTime = 0;
 
   if (gv >= 20) {
+    const pos_before_item = r.pos;
     skipItemRewardChapters(r, gv);
+    console.log('after ItemRewardChapters pos='+r.pos+' (was '+pos_before_item+')');
+    const pos_before_timed = r.pos;
     skipTimedScoreChapters(r, gv);
+    console.log('after TimedScoreChapters pos='+r.pos+' (was '+pos_before_timed+')');
     inquiryCode = r.readString();
+    console.log('inquiryCode='+inquiryCode+' pos='+r.pos);
     const op = readOfficerPass(r);
     playTime = op.playTime;
+    console.log('playTime='+playTime+' pos='+r.pos);
     r.readByte(); r.readInt();
     if (notJP) r.readBool();
+    console.log('before assertInt(44) pos='+r.pos);
     r.assertInt(44);
     r.readInt();
     skipStoryItfTimedScores(r);
