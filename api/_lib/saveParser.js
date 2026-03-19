@@ -423,6 +423,7 @@ export function parseSaveFile(buf) {
   else if (gv === 26) { r.readIntList(6); r.readIntList(6); }
   else                { r.readIntList();  r.readIntList(); }
 
+  console.log('pos_before_menu_unlocks='+r.pos+' peek='+r.buf.readInt32LE(r.pos));
   if (gv <= 25)       { r.readIntList(5); r.readIntList(5); }
   else if (gv === 26) { r.readIntList(6); r.readIntList(6); }
   else                { r.readIntList();  r.readIntList(); }
