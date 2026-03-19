@@ -376,6 +376,9 @@ function skipBeaconBase(r) {
 // ─── メインパーサー ───────────────────────────────────────────────────────────
 
 export function parseSaveFile(buf) {
+  const L = (msg) => console.log(msg); // ログ短縮
+  const peek = (r) => r.buf.readInt32LE(r.pos);
+
   const cc = detectCC(buf);
   if (!cc) throw new Error('国コードを検出できませんでした。セーブファイルが正しいか確認してください。');
 
@@ -383,17 +386,19 @@ export function parseSaveFile(buf) {
   const isJP = cc === 'jp';
   const notJP = !isJP;
   const gv = r.readInt();
+  L('01 gv='+gv+' cc='+cc+' pos='+r.pos);
 
   if (gv >= 10 || notJP) r.readBool();
   r.readBool(); r.readBool();
-
   const catfood = r.readInt();
-  r.readInt(); // current_energy
+  r.readInt();
+  L('02 after flags+catfood pos='+r.pos);
 
   r.readInt(); r.readInt(); r.readInt(); r.readInt(); r.readInt(); r.readInt();
   r.readDouble();
   r.readInt(); r.readInt(); r.readInt();
   readDst(r, gv, isJP);
+  L('03 after date/time pos='+r.pos);
 
   r.readInt(); r.readInt(); r.readInt();
   r.readInt(); r.readInt(); r.readInt();
@@ -402,232 +407,264 @@ export function parseSaveFile(buf) {
   r.readInt(); r.readInt(); r.readInt();
   r.readBool();
   r.readInt(); r.readInt(); r.readInt(); r.readInt();
+  L('04 after misc ints pos='+r.pos);
 
-  skipLineUps(r, gv);
-  skipStampData(r);
-  skipStoryChapters(r);
+  skipLineUps(r, gv);       L('05 after LineUps pos='+r.pos);
+  skipStampData(r);          L('06 after StampData pos='+r.pos);
+  skipStoryChapters(r);      L('07 after StoryChapters pos='+r.pos);
 
   if (gv >= 20 && gv <= 25) r.readIntList(231); else r.readIntList();
+  L('08 after enemy_guide pos='+r.pos);
 
-  console.log('gv='+gv+' isJP='+isJP+' pos_after_header='+r.pos);
   const catCount = skipCatsUnlocked(r, gv);
-  console.log('catCount='+catCount+' pos_after_CatsUnlocked='+r.pos);
+  L('09 after CatsUnlocked catCount='+catCount+' pos='+r.pos);
   skipCatsUpgrade(r, gv, catCount);
-  console.log('pos_after_CatsUpgrade='+r.pos);
+  L('10 after CatsUpgrade pos='+r.pos);
   skipCatsCurrentForm(r, gv, catCount);
-  console.log('pos_after_CatsCurrentForm='+r.pos);
+  L('11 after CatsCurrentForm pos='+r.pos);
   skipSpecialSkills(r);
-  console.log('pos_after_SpecialSkills='+r.pos);
+  L('12 after SpecialSkills pos='+r.pos+' peek='+peek(r));
 
-  // pos=22097付近の生バイト16個を表示
-  const _p = r.pos;
-  const _bytes = [];
-  for (let _i = 0; _i < 16; _i++) _bytes.push(r.buf[_p+_i].toString(16).padStart(2,'0'));
-  console.log('pos='+_p+' raw bytes: '+_bytes.join(' '));
-  // int4個分を表示
-  console.log('int[0]='+r.buf.readInt32LE(_p)+' int[1]='+r.buf.readInt32LE(_p+4)+' int[2]='+r.buf.readInt32LE(_p+8)+' int[3]='+r.buf.readInt32LE(_p+12));
   if (gv <= 25)       { r.readIntList(5); r.readIntList(5); }
   else if (gv === 26) { r.readIntList(6); r.readIntList(6); }
   else                { r.readIntList();  r.readIntList(); }
-  console.log('pos_after_menu_unlocks='+r.pos);
+  L('13 after menu_unlocks pos='+r.pos);
 
   skipBattleItems(r);
-  console.log('pos_after_BattleItems='+r.pos);
+  L('14 after BattleItems pos='+r.pos);
   if (gv <= 26) r.readIntList(17); else r.readIntList();
-  console.log('pos_after_new_dialogs='+r.pos);
+  L('15 after new_dialogs pos='+r.pos);
 
   r.readIntList(20); r.readIntList(1); r.readIntList(1);
   skipBattleItemsLocked(r);
-  console.log('pos_after_BattleItemsLocked='+r.pos);
+  L('16 after BattleItemsLocked pos='+r.pos);
 
   readDst(r, gv, isJP);
   r.readDate();
+  L('17 after date_2 pos='+r.pos);
   skipStoryTreasureFestival(r);
+  L('18 after TreasureFestival pos='+r.pos);
   readDst(r, gv, isJP);
   r.readDate();
-  console.log('pos_after_dates='+r.pos);
+  L('19 after date_3 pos='+r.pos);
 
   if (gv <= 37) r.readInt();
   r.readInt(); r.readInt(); r.readInt(); r.readInt(); r.readInt(); r.readInt();
-  r.readString(); // save_data_4_hash
+  r.readString();
+  L('20 after save_data_4_hash pos='+r.pos);
 
-  console.log('pos_before_MySale='+r.pos);
   skipMySale(r);
-  console.log('pos_after_MySale='+r.pos);
+  L('21 after MySale pos='+r.pos);
   r.readIntList(2);
 
   if (gv <= 37) { r.readInt(); r.readBool(); }
   r.readIntList(2);
+  L('22 after chara_flags pos='+r.pos);
 
   const normalTickets = r.readInt();
   const rareTickets   = r.readInt();
+  L('23 after tickets pos='+r.pos);
 
-  console.log('A: before CatsGatyaSeen pos='+r.pos);
   skipCatsGatyaSeen(r, gv, catCount);
-  console.log('B: after CatsGatyaSeen pos='+r.pos);
+  L('24 after CatsGatyaSeen pos='+r.pos);
   skipSpecialSkillsGatyaSeen(r);
-  console.log('C: after SpecialSkillsGatyaSeen pos='+r.pos);
+  L('25 after SpecialSkillsGatyaSeen pos='+r.pos);
   skipCatsStorage(r, gv);
-  console.log('D: after CatsStorage pos='+r.pos);
+  L('26 after CatsStorage pos='+r.pos);
   skipEventChapters(r, gv);
-  console.log('E: after EventChapters pos='+r.pos);
+  L('27 after EventChapters pos='+r.pos);
 
   r.readInt(); r.readInt();
-  if (gv >= 20)            r.readIntList(36);
+  if (gv >= 20)             r.readIntList(36);
   if (gv >= 20 && gv <= 25) r.readIntList(110);
   else if (gv >= 26)        r.readIntList();
-  console.log('F: after intlists pos='+r.pos);
+  L('28 after unlock_popups_8/unit_drops pos='+r.pos);
 
   skipGatyaRareNormalSeed(r, gv);
   r.readBool();
   r.readBoolList(7);
   r.readInt();
-  console.log('G: after gatya/bool pos='+r.pos);
+  L('29 after gatya_seed/achievements pos='+r.pos);
 
   readDst(r, gv, isJP);
   r.readDate();
+  L('30 after date_4 pos='+r.pos);
   skipGatya2(r);
-  console.log('H: after gatya2 pos='+r.pos);
+  L('31 after gatya2 pos='+r.pos);
 
   if (notJP) r.readString();
   r.readStringList();
-  console.log('I: after order_ids pos='+r.pos);
+  L('32 after order_ids pos='+r.pos);
 
   if (notJP) {
     r.readDouble(); r.readDouble(); r.readDouble();
     r.readStringList(); r.readBool(); r.readInt();
   }
-  console.log('J: after notJP block pos='+r.pos);
+  L('33 after notJP_block pos='+r.pos);
 
   skipLineUps2(r, gv);
-  console.log('K: after LineUps2 pos='+r.pos);
+  L('34 after LineUps2 pos='+r.pos);
   skipEventLegendRestrictions(r, gv);
-  console.log('L: after LegendRestrictions pos='+r.pos);
+  L('35 after LegendRestrictions pos='+r.pos);
 
   if (gv <= 37) { r.readIntList(7); r.readIntList(7); r.readIntList(7); }
 
   r.readDouble(); r.readDouble(); r.readDouble(); r.readDouble();
   skipGatyaTradeProgress(r);
-  console.log('M: after tradeProgress pos='+r.pos);
+  L('36 after tradeProgress pos='+r.pos);
 
   if (gv <= 37) r.readStringList();
   if (notJP) r.readDouble(); else r.readInt();
-  console.log('N: after getTimeSave2 pos='+r.pos);
+  L('37 after getTimeSave2 pos='+r.pos);
 
-  if (gv >= 20 && gv <= 25) r.readBoolList(12);
-  else if (gv >= 26 && gv < 39) r.readBoolList();
-  console.log('O: after boollist pos='+r.pos);
+  if (gv >= 20 && gv <= 25)      r.readBoolList(12);
+  else if (gv >= 26 && gv < 39)  r.readBoolList();
+  L('38 after boollist pos='+r.pos);
 
   skipCatsMaxUpgradeLevels(r, gv, catCount);
-  console.log('P: after MaxUpgradeLevels pos='+r.pos);
+  L('39 after CatsMaxUpgradeLevels pos='+r.pos);
   skipSpecialSkillsMaxLevels(r);
-  console.log('Q: after SpecialSkillsMaxLevels pos='+r.pos);
+  L('40 after SpecialSkillsMaxLevels pos='+r.pos);
   skipUserRankRewards(r, gv);
-  console.log('R: after UserRankRewards pos='+r.pos);
+  L('41 after UserRankRewards pos='+r.pos);
   if (!notJP) r.readDouble();
   skipCatsUnlockedForms(r, gv, catCount);
-  console.log('S: after UnlockedForms pos='+r.pos);
+  L('42 after CatsUnlockedForms pos='+r.pos);
 
-  const _tp = r.pos;
-  const _tb = [];
-  for (let _i = 0; _i < 20; _i++) _tb.push(r.buf[_tp+_i].toString(16).padStart(2,'0'));
-  console.log('T: before transfer_code pos='+_tp+' bytes: '+_tb.join(' '));
-  console.log('T: int32='+r.buf.readInt32LE(_tp));
-  r.readString(); r.readString(); r.readBool(); // transfer_code, confirmation_code, transfer_flag
-  console.log('T: after transfer fields pos='+r.pos);
+  L('43 before transfer_code pos='+r.pos+' peek='+peek(r));
+  r.readString(); r.readString(); r.readBool();
+  L('44 after transfer_fields pos='+r.pos);
 
   let inquiryCode = '', playTime = 0;
 
   if (gv >= 20) {
-    const pos_before_item = r.pos;
+    L('45 before ItemRewardChapters pos='+r.pos+' peek='+peek(r));
     skipItemRewardChapters(r, gv);
-    console.log('after ItemRewardChapters pos='+r.pos+' (was '+pos_before_item+')');
-    const pos_before_timed = r.pos;
+    L('46 after ItemRewardChapters pos='+r.pos);
     skipTimedScoreChapters(r, gv);
-    console.log('after TimedScoreChapters pos='+r.pos+' (was '+pos_before_timed+')');
+    L('47 after TimedScoreChapters pos='+r.pos+' peek='+peek(r));
     inquiryCode = r.readString();
-    console.log('inquiryCode='+inquiryCode+' pos='+r.pos);
+    L('48 inquiryCode='+inquiryCode+' pos='+r.pos);
     const op = readOfficerPass(r);
     playTime = op.playTime;
-    console.log('playTime='+playTime+' pos='+r.pos);
+    L('49 playTime='+playTime+' pos='+r.pos);
     r.readByte(); r.readInt();
     if (notJP) r.readBool();
-    console.log('before assertInt(44) pos='+r.pos);
+    L('50 before assertInt(44) pos='+r.pos+' peek='+peek(r));
     r.assertInt(44);
     r.readInt();
     skipStoryItfTimedScores(r);
     r.readInt();
     if (gv > 26) r.readIntList();
     r.readBool();
+    L('51 before assertInt(45) pos='+r.pos+' peek='+peek(r));
     r.assertInt(45);
   }
   if (gv >= 21) {
+    L('52 before assertInt(46) pos='+r.pos+' peek='+peek(r));
     r.assertInt(46);
     skipGatyaEventSeed(r, gv);
     if (gv < 34) { r.readIntList(100); r.readIntList(100); }
     else         { r.readIntList();    r.readIntList(); }
+    L('53 before assertInt(47) pos='+r.pos+' peek='+peek(r));
     r.assertInt(47);
   }
-  if (gv >= 22) r.assertInt(48);
+  if (gv >= 22) { L('54 before assertInt(48) pos='+r.pos+' peek='+peek(r)); r.assertInt(48); }
   if (gv >= 23) {
     if (!notJP) r.readBool();
     r.readDouble();
     if (gv < 26) r.readIntList(44); else r.readIntList();
     r.readBool(); r.readBoolList(3); r.readDouble(); r.readBoolList(3); r.readInt();
+    L('55 before assertInt(49) pos='+r.pos+' peek='+peek(r));
     r.assertInt(49);
   }
-  if (gv >= 24) r.assertInt(50);
-  if (gv >= 25) r.assertInt(51);
-  if (gv >= 26) { skipCatsCatguideCollected(r); r.assertInt(52); }
+  if (gv >= 24) { L('56 before assertInt(50) pos='+r.pos+' peek='+peek(r)); r.assertInt(50); }
+  if (gv >= 25) { L('57 before assertInt(51) pos='+r.pos+' peek='+peek(r)); r.assertInt(51); }
+  if (gv >= 26) {
+    skipCatsCatguideCollected(r);
+    L('58 before assertInt(52) pos='+r.pos+' peek='+peek(r));
+    r.assertInt(52);
+  }
   if (gv >= 27) {
     r.readDouble(); r.readDouble(); r.readDouble(); r.readDouble(); r.readDouble();
+    L('59 after 5xDouble pos='+r.pos);
     r.readIntList(); skipCatsFourthForms(r); skipCatsCateyesUsed(r);
     r.readIntList(); r.readIntList();
+    L('60 after catfruit/catseyes pos='+r.pos);
     skipGamatoto(r);
+    L('61 after Gamatoto pos='+r.pos);
     r.readBoolList();
     skipExChapters(r);
+    L('62 before assertInt(53) pos='+r.pos+' peek='+peek(r));
     r.assertInt(53);
   }
-  if (gv >= 29) { skipGamatoto2(r); r.assertInt(54); skipItemPack(r); r.assertInt(54); }
+  if (gv >= 29) {
+    skipGamatoto2(r);
+    L('63 before assertInt(54) pos='+r.pos+' peek='+peek(r));
+    r.assertInt(54);
+    skipItemPack(r);
+    L('64 before assertInt(54) pos='+r.pos+' peek='+peek(r));
+    r.assertInt(54);
+  }
   if (gv >= 30) {
     skipGamatotoSkin(r);
-    const platinumTicketsInner = r.readInt(); // stored below
+    r.readInt(); // platinum_tickets
     skipLoginBonus(r, gv);
+    L('65 after LoginBonus pos='+r.pos);
     if (gv < 101000) r.readBoolList();
     r.readDouble(); r.readDouble();
     r.readIntTupleList(16);
     r.readInt(); r.readInt(); r.readInt(); r.readInt();
+    L('66 before assertInt(55) pos='+r.pos+' peek='+peek(r));
     r.assertInt(55);
   }
-  if (gv >= 31) { r.readBool(); skipItemRewardItemObtains(r); skipGatyaStepup(r); r.readInt(); r.assertInt(56); }
-  if (gv >= 32) { r.readBool(); skipCatsFavorites(r); r.assertInt(57); }
-  if (gv >= 33) { skipDojo(r); skipDojoItemLocks(r); r.assertInt(58); }
-  if (gv >= 34) { r.readDouble(); skipOutbreaks(r); skipOutbreaks2(r); skipSchemeItems(r); }
+  if (gv >= 31) {
+    r.readBool(); skipItemRewardItemObtains(r); skipGatyaStepup(r); r.readInt();
+    L('67 before assertInt(56) pos='+r.pos+' peek='+peek(r));
+    r.assertInt(56);
+  }
+  if (gv >= 32) {
+    r.readBool(); skipCatsFavorites(r);
+    L('68 before assertInt(57) pos='+r.pos+' peek='+peek(r));
+    r.assertInt(57);
+  }
+  if (gv >= 33) {
+    skipDojo(r); skipDojoItemLocks(r);
+    L('69 before assertInt(58) pos='+r.pos+' peek='+peek(r));
+    r.assertInt(58);
+  }
+  if (gv >= 34) {
+    r.readDouble(); skipOutbreaks(r); skipOutbreaks2(r); skipSchemeItems(r);
+    L('70 after gv34 block pos='+r.pos);
+  }
 
   let energyPenaltyTimestamp = 0;
   if (gv >= 35) {
     skipOutbreaksCurrentOutbreaks(r);
     r.readIntBoolDict();
     energyPenaltyTimestamp = r.readDouble();
+    L('71 before assertInt(60) pos='+r.pos+' peek='+peek(r));
     r.assertInt(60);
   }
-  if (gv >= 36) { skipCatsCharaNewFlags(r); r.readBool(); skipItemPackDisplayedPacks(r); r.assertInt(61); }
-  if (gv >= 38) { skipUnlockPopups(r); r.assertInt(63); }
-  if (gv >= 39) { skipOtoto(r); skipOtoto2(r, gv); r.readDouble(); r.assertInt(64); }
+  if (gv >= 36) {
+    skipCatsCharaNewFlags(r); r.readBool(); skipItemPackDisplayedPacks(r);
+    L('72 before assertInt(61) pos='+r.pos+' peek='+peek(r));
+    r.assertInt(61);
+  }
+  if (gv >= 38) {
+    skipUnlockPopups(r);
+    L('73 before assertInt(63) pos='+r.pos+' peek='+peek(r));
+    r.assertInt(63);
+  }
+  if (gv >= 39) {
+    skipOtoto(r); skipOtoto2(r, gv); r.readDouble();
+    L('74 before assertInt(64) pos='+r.pos+' peek='+peek(r));
+    r.assertInt(64);
+  }
+  L('75 before _parseLaterSections pos='+r.pos);
 
   const late = _parseLaterSections(r, gv, notJP);
 
-  return {
-    cc, gameVersion: gv, inquiryCode,
-    energyPenaltyTimestamp,
-    passwordRefreshToken: late.passwordRefreshToken,
-    playTime, userRank: 0,
-    catfood, rareTickets,
-    platinumTickets: late.platinumTickets,
-    legendTickets: late.legendTickets,
-    rawBytes: buf,
-  };
-}
 
 // ─── gv>=40 以降の後半セクション ─────────────────────────────────────────────
 
