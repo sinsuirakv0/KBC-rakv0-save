@@ -12,7 +12,7 @@ const CC_TO_CLIENT_CODE = {
 
 /** CC → MD5ソルト用patching code */
 export const CC_TO_PATCHING_CODE = {
-  jp: 'jp',
+  jp: '',
   en: 'en',
   kr: 'kr',
   tw: 'tw',
