@@ -201,8 +201,15 @@
   });
 
   function renderParseResult(d) {
+    const hd = d._hashDebug || {};
+    const storedHash = hd.storedHash || '—';
+    const hashRows = hd.hashDebug ? Object.entries(hd.hashDebug).map(([cc, v]) =>
+      [`hash[${cc}]`, v.match ? '✅ match' : `❌ ${v.computed}`, v.match ? 'ok' : 'bad']
+    ) : [];
     const rows = [
-      ['ファイルサイズ',          `${d.fileSizeBytes.toLocaleString()} bytes`],
+      ['ファイルサイズ',          `${(d.fileSizeBytes||0).toLocaleString()} bytes`],
+      ['storedHash(末尾32B)',     storedHash],
+      ...hashRows,
       ['国コード (CC)',            d.cc,                       d.cc ? 'ok' : 'bad'],
       ['ゲームバージョン',         d.gameVersion,              d.gameVersion > 0 ? 'ok' : 'bad'],
       ['問い合わせコード',         d.inquiryCode,              d.inquiryCode ? 'ok' : 'bad'],
