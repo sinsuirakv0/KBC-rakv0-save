@@ -85,8 +85,8 @@ export function detectCC(buf) {
 
 // ─── 共通ヘルパー ─────────────────────────────────────────────────────────────
 
-// Upgrade.read: 2 int (base + plus)
-function readUpgrade(r) { r.readInt(); r.readInt(); }
+// Upgrade.read: 2 ushort (plus + base) = 4 bytes total
+function readUpgrade(r) { r.readUShort(); r.readUShort(); }
 
 // Cats.get_gv_cats
 function getGvCats(gv) {
