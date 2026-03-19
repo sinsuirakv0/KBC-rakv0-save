@@ -419,7 +419,13 @@ export function parseSaveFile(buf) {
   skipSpecialSkills(r);
   console.log('pos_after_SpecialSkills='+r.pos);
 
-  console.log('pos_before_menu_unlocks='+r.pos+' peek='+r.buf.readInt32LE(r.pos));
+  // pos=22097付近の生バイト16個を表示
+  const _p = r.pos;
+  const _bytes = [];
+  for (let _i = 0; _i < 16; _i++) _bytes.push(r.buf[_p+_i].toString(16).padStart(2,'0'));
+  console.log('pos='+_p+' raw bytes: '+_bytes.join(' '));
+  // int4個分を表示
+  console.log('int[0]='+r.buf.readInt32LE(_p)+' int[1]='+r.buf.readInt32LE(_p+4)+' int[2]='+r.buf.readInt32LE(_p+8)+' int[3]='+r.buf.readInt32LE(_p+12));
   if (gv <= 25)       { r.readIntList(5); r.readIntList(5); }
   else if (gv === 26) { r.readIntList(6); r.readIntList(6); }
   else                { r.readIntList();  r.readIntList(); }
