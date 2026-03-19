@@ -144,24 +144,24 @@ function skipCatsUnlocked(r, gv) {
   const n = readCatCount(r, gv); for (let i = 0; i < n; i++) r.readInt(); return n;
 }
 function skipCatsUpgrade(r, gv, n) {
-  const cnt = getGvCats(gv) !== null ? n : r.readInt();
-  for (let i = 0; i < cnt; i++) readUpgrade(r);
+  if (getGvCats(gv) === null) r.readInt(); // read & discard stream count
+  for (let i = 0; i < n; i++) readUpgrade(r);
 }
 function skipCatsCurrentForm(r, gv, n) {
-  const cnt = getGvCats(gv) !== null ? n : r.readInt();
-  for (let i = 0; i < cnt; i++) r.readInt();
+  if (getGvCats(gv) === null) r.readInt();
+  for (let i = 0; i < n; i++) r.readInt();
 }
 function skipCatsUnlockedForms(r, gv, n) {
-  const cnt = getGvCats(gv) !== null ? n : r.readInt();
-  for (let i = 0; i < cnt; i++) r.readInt();
+  if (getGvCats(gv) === null) r.readInt();
+  for (let i = 0; i < n; i++) r.readInt();
 }
 function skipCatsGatyaSeen(r, gv, n) {
-  const cnt = getGvCats(gv) !== null ? n : r.readInt();
-  for (let i = 0; i < cnt; i++) r.readInt();
+  if (getGvCats(gv) === null) r.readInt();
+  for (let i = 0; i < n; i++) r.readInt();
 }
 function skipCatsMaxUpgradeLevels(r, gv, n) {
-  const cnt = getGvCats(gv) !== null ? n : r.readInt();
-  for (let i = 0; i < cnt; i++) readUpgrade(r);
+  if (getGvCats(gv) === null) r.readInt();
+  for (let i = 0; i < n; i++) readUpgrade(r);
 }
 function skipCatsStorage(r, gv) {
   const total = gv < 110100 ? 100 : r.readShort();
