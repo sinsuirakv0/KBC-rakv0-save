@@ -423,9 +423,15 @@ export function parseSaveFile(buf) {
   else if (gv === 26) { r.readIntList(6); r.readIntList(6); }
   else                { r.readIntList();  r.readIntList(); }
 
+  if (gv <= 25)       { r.readIntList(5); r.readIntList(5); }
+  else if (gv === 26) { r.readIntList(6); r.readIntList(6); }
+  else                { r.readIntList();  r.readIntList(); }
+  console.log('pos_after_menu_unlocks='+r.pos);
+
   skipBattleItems(r);
   console.log('pos_after_BattleItems='+r.pos);
   if (gv <= 26) r.readIntList(17); else r.readIntList();
+  console.log('pos_after_new_dialogs='+r.pos);
 
   r.readIntList(20); r.readIntList(1); r.readIntList(1);
   skipBattleItemsLocked(r);
