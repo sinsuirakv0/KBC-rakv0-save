@@ -69,7 +69,20 @@ export class DataReader {
   }
   assertInt(expected) {
     const v = this.readInt();
-    if (v !== expected) throw new Error(`assertInt: expected ${expected}, got ${v} at pos ${this.pos - 4}`);
+    if (v !== expected) {
+      // 前後200バイトをスキャンして expected の位置を探す
+      let foundAt = null;
+      const searchStart = Math.max(0, this.pos - 204);
+      const searchEnd = Math.min(this.buf.length - 4, this.pos + 200);
+      for (let _s = searchStart; _s <= searchEnd; _s++) {
+        if (this.buf.readInt32LE(_s) === expected) {
+          foundAt = _s;
+          break;
+        }
+      }
+      const drift = foundAt !== null ? foundAt - (this.pos - 4) : 'not found in ±200';
+      throw new Error(`assertInt: expected ${expected}, got ${v} at pos ${this.pos - 4}. Found ${expected} at offset ${drift} from current pos.`);
+    }
   }
 }
 
@@ -530,7 +543,43 @@ export function parseSaveFile(buf) {
   if (!notJP) r.readDouble();
   skipCatsUnlockedForms(r, gv, catCount);
   L('42 after CatsUnlockedForms pos='+r.pos);
+  // 400バイトダンプして inquiry_code パターンを探す
+  {
+    const _base = r.pos;
+    const _hex = [];
+    for (let _i = 0; _i < 400; _i++) _hex.push(r.buf[_base+_i].toString(16).padStart(2,'0'));
+    // 16バイトごとに出力
+    for (let _row = 0; _row < 25; _row++) {
+      L('DUMP '+(_base+_row*16)+': '+_hex.slice(_row*16, _row*16+16).join(' '));
+    }
+    // len=16 (0x10 00 00 00) の文字列パターンを探す
+    for (let _off = 0; _off < 380; _off++) {
+      const _len = r.buf.readInt32LE(_base + _off);
+      if (_len >= 8 && _len <= 30) {
+        const _str = r.buf.slice(_base+_off+4, _base+_off+4+_len).toString('latin1');
+        if (/^[a-zA-Z0-9]+$/.test(_str)) {
+          L('CANDIDATE @+'+_off+' len='+_len+' str="'+_str+'"');
+        }
+      }
+    }
+  }
 
+  // 44マーカーをスキャンして実際の位置を特定
+  {
+    const _scan_start = r.pos;
+    let _found44 = -1;
+    for (let _s = 0; _s < 2000; _s++) {
+      if (r.buf.readInt32LE(_scan_start + _s) === 44) {
+        _found44 = _scan_start + _s;
+        break;
+      }
+    }
+    L('SCAN: first int=44 found at pos='+_found44+' (offset from current: '+(_found44-_scan_start)+')');
+    // 64バイトダンプ
+    const _d = [];
+    for (let _i = 0; _i < 64; _i++) _d.push(r.buf[_scan_start+_i].toString(16).padStart(2,'0'));
+    L('SCAN DUMP: '+_d.join(' '));
+  }
   L('43 before transfer_code pos='+r.pos+' peek='+peek(r));
   // 80バイト詳細ダンプ
   {
