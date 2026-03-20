@@ -1,900 +1,710 @@
-// lib/saveParser.js
-// Python io/data.py + io/save.py + 各game/サブクラスの JS変換
-import { computeSaveHash } from './crypto.js';
-import { ALL_COUNTRY_CODES, CC_TO_PATCHING_CODE } from './clientInfo.js';
+from __future__ import annotations
+from typing import Any
+from bcsfe import core
+from bcsfe.cli import color, dialog_creator
 
-// ─── DataReader ──────────────────────────────────────────────────────────────
 
-export class DataReader {
-  constructor(buf) {
-    this.buf = buf;
-    this.pos = 0;
-  }
-  readBytes(n) { const s = this.buf.slice(this.pos, this.pos + n); this.pos += n; return s; }
-  readInt()    { const v = this.buf.readInt32LE(this.pos);   this.pos += 4; return v; }
-  readUInt()   { const v = this.buf.readUInt32LE(this.pos);  this.pos += 4; return v; }
-  readShort()  { const v = this.buf.readInt16LE(this.pos);   this.pos += 2; return v; }
-  readUShort() { const v = this.buf.readUInt16LE(this.pos);  this.pos += 2; return v; }
-  readByte()   { const v = this.buf.readInt8(this.pos);      this.pos += 1; return v; }
-  readUByte()  { const v = this.buf.readUInt8(this.pos);     this.pos += 1; return v; }
-  readDouble() { const v = this.buf.readDoubleLE(this.pos);  this.pos += 8; return v; }
-  readBool()   { return this.readByte() !== 0; }
-  readULong()  { const v = this.buf.readBigUInt64LE(this.pos); this.pos += 8; return Number(v); }
+class TalentOrb:
+    def __init__(self, id: int, value: int):
+        self.id = id
+        self.value = value
 
-  readString(length = null) {
-    const len = length ?? this.readInt();
-    return this.readBytes(len).toString('utf-8');
-  }
-  readStringList(count = null) {
-    const n = count ?? this.readInt();
-    const r = []; for (let i = 0; i < n; i++) r.push(this.readString()); return r;
-  }
-  readIntList(count = null) {
-    const n = count ?? this.readInt();
-    const r = []; for (let i = 0; i < n; i++) r.push(this.readInt()); return r;
-  }
-  readBoolList(count = null) {
-    const n = count ?? this.readInt();
-    const r = []; for (let i = 0; i < n; i++) r.push(this.readBool()); return r;
-  }
-  readIntTupleList(count = null) {
-    const n = count ?? this.readInt();
-    const r = []; for (let i = 0; i < n; i++) r.push([this.readInt(), this.readInt()]); return r;
-  }
-  readIntBoolDict(count = null) {
-    const n = count ?? this.readInt();
-    const r = {}; for (let i = 0; i < n; i++) r[this.readInt()] = this.readBool(); return r;
-  }
-  readIntIntDict(count = null) {
-    const n = count ?? this.readInt();
-    const r = {}; for (let i = 0; i < n; i++) r[this.readInt()] = this.readInt(); return r;
-  }
-  readIntDoubleDict(count = null) {
-    const n = count ?? this.readInt();
-    const r = {}; for (let i = 0; i < n; i++) r[this.readInt()] = this.readDouble(); return r;
-  }
-  readVariableLengthInt() {
-    let i = 0;
-    for (let _ = 0; _ < 4; _++) {
-      const read = this.readUByte();
-      i = (i << 7) | (read & 0x7F);
-      if ((read & 0x80) === 0) return i;
-    }
-    return i;
-  }
-  readDate() {
-    const yr = this.readInt(), mo = this.readInt(), dy = this.readInt();
-    const hr = this.readInt(), mn = this.readInt(), sc = this.readInt();
-    return new Date(yr, mo - 1, dy, hr, mn, sc);
-  }
-  assertInt(expected) {
-    const v = this.readInt();
-    if (v !== expected) {
-      // 前後200バイトをスキャンして expected の位置を探す
-      let foundAt = null;
-      const searchStart = Math.max(0, this.pos - 204);
-      const searchEnd = Math.min(this.buf.length - 4, this.pos + 200);
-      for (let _s = searchStart; _s <= searchEnd; _s++) {
-        if (this.buf.readInt32LE(_s) === expected) {
-          foundAt = _s;
-          break;
+    @staticmethod
+    def init() -> TalentOrb:
+        return TalentOrb(
+            0,
+            0,
+        )
+
+    @staticmethod
+    def read(stream: core.Data, gv: core.GameVersion) -> TalentOrb:
+        id = stream.read_short()
+        if gv < 110400:
+            value = stream.read_byte()
+        else:
+            value = stream.read_short()
+        return TalentOrb(id, value)
+
+    def write(self, stream: core.Data, gv: core.GameVersion):
+        stream.write_short(self.id)
+        if gv < 110400:
+            stream.write_byte(self.value)
+        else:
+            stream.write_short(self.value)
+
+    def serialize(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "value": self.value,
         }
-      }
-      const drift = foundAt !== null ? foundAt - (this.pos - 4) : 'not found in ±200';
-      throw new Error(`assertInt: expected ${expected}, got ${v} at pos ${this.pos - 4}. Found ${expected} at offset ${drift} from current pos.`);
-    }
-  }
-}
-
-// ─── CC検出 ──────────────────────────────────────────────────────────────────
-
-export function detectCC(buf) {
-  const storedHash = buf.slice(buf.length - 32).toString('utf-8');
-  for (const cc of ALL_COUNTRY_CODES) {
-    if (computeSaveHash(CC_TO_PATCHING_CODE[cc], buf) === storedHash) return cc;
-  }
-  return null;
-}
-
-// ─── 共通ヘルパー ─────────────────────────────────────────────────────────────
-
-// Upgrade.read: 2 ushort (plus + base) = 4 bytes total
-function readUpgrade(r) { r.readShort(); r.readShort(); } // Upgrade = base(short) + plus(short)
-
-// Cats.get_gv_cats
-function getGvCats(gv) {
-  const t = { 20: 203, 21: 214, 22: 231, 23: 241, 24: 249, 25: 260 };
-  return t[gv] ?? null;
-}
-function readCatCount(r, gv) {
-  const f = getGvCats(gv); return f !== null ? f : r.readInt();
-}
-
-// DST フラグ
-function readDst(r, gv, isJP) { if (!isJP && gv >= 49) r.readBool(); }
-
-// ─── 構造体スキップ関数群 ─────────────────────────────────────────────────────
-
-// slots.py: LineUps.read
-function skipLineUps(r, gv) {
-  const len = gv < 90700 ? 10 : r.readUByte();
-  for (let i = 0; i < len; i++) for (let j = 0; j < 10; j++) r.readInt();
-}
-// slots.py: LineUps.read_2
-function skipLineUps2(r, gv) {
-  r.readInt();
-  if (gv < 90700) r.readBoolList(10); else r.readUByte();
-}
-// slots.py: LineUps.read_slot_names
-function skipLineUpsSlotNames(r, gv) {
-  const total = gv >= 110600 ? r.readUByte() : 15;
-  for (let i = 0; i < total; i++) { const len = r.readInt(); r.readBytes(len); }
-}
-
-// stamp.py: StampData.read
-function skipStampData(r) {
-  r.readInt(); r.readIntList(30); r.readInt(); r.readInt();
-}
-
-// story.py: StoryChapters.read
-function skipStoryChapters(r) {
-  for (let i = 0; i < 10; i++) r.readInt();           // selected_stage
-  for (let i = 0; i < 10; i++) r.readInt();           // progress
-  for (let i = 0; i < 10; i++) for (let j = 0; j < 51; j++) r.readInt(); // clear_times
-  for (let i = 0; i < 10; i++) for (let j = 0; j < 49; j++) r.readInt(); // treasure
-}
-// story.py: StoryChapters.read_treasure_festival
-function skipStoryTreasureFestival(r) {
-  for (let field = 0; field < 5; field++) for (let i = 0; i < 10; i++) r.readInt();
-}
-// story.py: StoryChapters.read_itf_timed_scores
-function skipStoryItfTimedScores(r) {
-  for (let i = 4; i < 7; i++) for (let j = 0; j < 51; j++) r.readInt();
-}
-
-// cat.py: Cats.read_unlocked → returns catCount
-function skipCatsUnlocked(r, gv) {
-  const n = readCatCount(r, gv); for (let i = 0; i < n; i++) r.readInt(); return n;
-}
-function skipCatsUpgrade(r, gv, n) {
-  if (getGvCats(gv) === null) r.readInt(); // read & discard stream count
-  for (let i = 0; i < n; i++) readUpgrade(r);
-}
-function skipCatsCurrentForm(r, gv, n) {
-  if (getGvCats(gv) === null) r.readInt();
-  for (let i = 0; i < n; i++) r.readInt();
-}
-function skipCatsUnlockedForms(r, gv, n) {
-  if (getGvCats(gv) === null) r.readInt();
-  for (let i = 0; i < n; i++) r.readInt();
-}
-function skipCatsGatyaSeen(r, gv, n) {
-  if (getGvCats(gv) === null) r.readInt();
-  for (let i = 0; i < n; i++) r.readInt();
-}
-function skipCatsMaxUpgradeLevels(r, gv, n) {
-  if (getGvCats(gv) === null) r.readInt();
-  for (let i = 0; i < n; i++) readUpgrade(r);
-}
-function skipCatsStorage(r, gv) {
-  const total = gv < 110100 ? 100 : r.readShort();
-  for (let i = 0; i < total; i++) r.readInt();
-  for (let i = 0; i < total; i++) r.readInt();
-}
-function skipCatsCatguideCollected(r) { const n = r.readInt(); for (let i = 0; i < n; i++) r.readBool(); }
-function skipCatsFourthForms(r)       { const n = r.readInt(); for (let i = 0; i < n; i++) r.readInt(); }
-function skipCatsCateyesUsed(r)       { const n = r.readInt(); for (let i = 0; i < n; i++) r.readInt(); }
-function skipCatsFavorites(r)         { const n = r.readInt(); for (let i = 0; i < n; i++) { r.readInt(); r.readBool(); } }
-function skipCatsCharaNewFlags(r)     { const n = r.readInt(); for (let i = 0; i < n; i++) { r.readInt(); r.readInt(); } }
-function skipCatsTalents(r) {
-  const n = r.readInt();
-  for (let i = 0; i < n; i++) {
-    r.readInt(); const t = r.readInt();
-    for (let j = 0; j < t; j++) { r.readInt(); r.readInt(); }
-  }
-}
-
-// special_skill.py
-function skipSpecialSkills(r)          { for (let i = 0; i < 11; i++) readUpgrade(r); }
-function skipSpecialSkillsGatyaSeen(r) { for (let i = 0; i < 10; i++) r.readInt(); }
-function skipSpecialSkillsMaxLevels(r) { for (let i = 0; i < 11; i++) readUpgrade(r); }
-
-// battle_items.py
-function skipBattleItems(r)       { for (let i = 0; i < 6; i++) r.readInt(); }
-function skipBattleItemsLocked(r) { r.readBool(); for (let i = 0; i < 6; i++) r.readBool(); }
-function skipBattleItemsEndless(r) {
-  for (let i = 0; i < 6; i++) { r.readBool(); r.readBool(); r.readUByte(); r.readDouble(); r.readDouble(); }
-}
-
-// gatya.py
-function skipGatyaRareNormalSeed(r, gv) {
-  if (gv < 33) { r.readULong(); r.readULong(); } else { r.readUInt(); r.readUInt(); }
-}
-function skipGatya2(r) {
-  r.readInt(); r.readInt(); r.readInt(); r.readInt(); r.readInt();
-  r.readBool(); r.readBool(); r.readBool();
-}
-function skipGatyaTradeProgress(r) { r.readInt(); }
-function skipGatyaEventSeed(r, gv) { if (gv < 33) r.readULong(); else r.readUInt(); }
-function skipGatyaStepup(r) {
-  const n1 = r.readInt(); for (let i = 0; i < n1; i++) { r.readInt(); r.readInt(); }
-  const n2 = r.readInt(); for (let i = 0; i < n2; i++) { r.readInt(); r.readDouble(); }
-}
-
-// my_sale.py: MySale.read_bonus_hash
-function skipMySale(r) {
-  const n1 = r.readVariableLengthInt();
-  for (let i = 0; i < n1; i++) { r.readVariableLengthInt(); r.readVariableLengthInt(); }
-  const n2 = r.readVariableLengthInt();
-  for (let i = 0; i < n2; i++) { r.readVariableLengthInt(); r.readByte(); }
-}
-
-// user_rank_rewards.py
-function skipUserRankRewards(r, gv) {
-  const total = gv >= 30 ? r.readInt() : 50;
-  for (let i = 0; i < total; i++) r.readBool();
-}
-
-// item_reward_stage.py: ItemRewardChapters.read
-function skipItemRewardChapters(r, gv) {
-  if (gv < 20) return;
-  let total, stages, stars;
-  if (gv <= 33)      { total = 50;          stages = 12; stars = 3; }
-  else if (gv <= 34) { total = r.readInt(); stages = 12; stars = 3; }
-  else               { total = r.readInt(); stages = r.readInt(); stars = r.readInt(); }
-  for (let i = 0; i < total; i++)
-    for (let s = 0; s < stars; s++)
-      for (let st = 0; st < stages; st++) r.readBool();
-}
-// item_reward_stage.py: read_item_obtains
-function skipItemRewardItemObtains(r) {
-  const n1 = r.readInt();
-  for (let i = 0; i < n1; i++) {
-    r.readInt(); const n2 = r.readInt();
-    for (let j = 0; j < n2; j++) { r.readInt(); r.readBool(); }
-  }
-  const n3 = r.readInt(); for (let i = 0; i < n3; i++) { r.readInt(); r.readBool(); }
-}
-
-// timed_score.py: TimedScoreChapters.read
-function skipTimedScoreChapters(r, gv) {
-  if (gv < 20) return;
-  let total, stages, stars;
-  if (gv <= 33)      { total = 50;          stages = 12; stars = 3; }
-  else if (gv <= 34) { total = r.readInt(); stages = 12; stars = 3; }
-  else               { total = r.readInt(); stages = r.readInt(); stars = r.readInt(); }
-  for (let i = 0; i < total; i++)
-    for (let s = 0; s < stars; s++)
-      for (let st = 0; st < stages; st++) r.readInt();
-}
-
-// officer_pass.py: OfficerPass.read
-function readOfficerPass(r) { return { playTime: r.readInt() }; }
-
-// event.py: EventChapters.read
-function skipEventChapters(r, gv) {
-  if (gv < 20) return;
-
-  function readCounts(withStages) {
-    if (gv > 80099) {
-      const mt = r.readUByte(), sc = r.readUShort(), sp = r.readUByte();
-      const stg = withStages ? r.readUByte() : 0;
-      return { mt, sc, sp, stg, isInt: false };
-    } else if (gv <= 32) { return { mt: 3, sc: 150, sp: 3, stg: 12, isInt: true }; }
-    else if (gv <= 34)   { return { mt: 4, sc: 150, sp: 3, stg: 12, isInt: true }; }
-    else {
-      const mt = r.readInt(), sc = r.readInt(), sp = r.readInt();
-      return { mt, sc, sp, stg: 0, isInt: true };
-    }
-  }
-  function rv(isInt) { return isInt ? r.readInt() : r.readUShort(); }
-  function readSec(p, withStg) {
-    for (let m = 0; m < p.mt; m++)
-      for (let sc = 0; sc < p.sc; sc++)
-        for (let sp = 0; sp < p.sp; sp++) {
-          if (withStg) for (let st = 0; st < p.stg; st++) rv(p.isInt);
-          else rv(p.isInt);
-        }
-  }
-
-  // Pass1: selected_stage
-  const p1 = readCounts(true);
-  readSec(p1, false);
-
-  // Pass2: clear_progress
-  let p2;
-  if (gv > 80099) p2 = { ...p1 };
-  else if (gv <= 32) p2 = { mt: 3, sc: 150, sp: 3, isInt: true };
-  else if (gv <= 34) p2 = { mt: 4, sc: 150, sp: 3, isInt: true };
-  else { const mt = r.readInt(), sc = r.readInt(), sp = r.readInt(); p2 = { mt, sc, sp, isInt: true }; }
-  readSec(p2, false);
-
-  // Pass3: stages
-  let p3;
-  if (gv > 80099) p3 = { ...p1 };
-  else if (gv <= 32) p3 = { mt: 3, sc: 150, sp: 3, stg: 12, isInt: true };
-  else if (gv <= 34) p3 = { mt: 4, sc: 150, sp: 3, stg: 12, isInt: true };
-  else {
-    const mt = r.readInt(), sc = r.readInt(), stg = r.readInt(), sp = r.readInt();
-    p3 = { mt, sc, sp, stg, isInt: true };
-  }
-  readSec(p3, true);
-
-  // Pass4: chapter_unlock_state
-  let p4;
-  if (gv > 80099) p4 = { ...p1 };
-  else if (gv <= 32) p4 = { mt: 3, sc: 150, sp: 3, isInt: true };
-  else if (gv <= 34) p4 = { mt: 4, sc: 150, sp: 3, isInt: true };
-  else { const mt = r.readInt(), sc = r.readInt(), sp = r.readInt(); p4 = { mt, sc, sp, isInt: true }; }
-  readSec(p4, false);
-}
-
-// event.py: EventChapters.read_legend_restrictions
-function skipEventLegendRestrictions(r, gv) {
-  if (gv < 20) return;
-  let mt, sc;
-  if (gv < 33)      { mt = 3; sc = 150; }
-  else if (gv < 41) { mt = 4; sc = 150; }
-  else              { mt = r.readInt(); sc = r.readInt(); }
-  for (let m = 0; m < mt; m++) for (let s = 0; s < sc; s++) r.readInt();
-}
-
-// 各種補助構造体
-function skipGamatoto(r) {
-  r.readInt();
-  const n = r.readInt();
-  for (let i = 0; i < n; i++) { r.readInt(); r.readInt(); r.readInt(); r.readInt(); }
-  r.readDouble(); r.readInt();
-}
-function skipGamatoto2(r) { r.readInt(); r.readDouble(); r.readBool(); }
-function skipGamatotoSkin(r) { r.readInt(); }
-function skipItemPack(r) {
-  const n = r.readInt(); for (let i = 0; i < n; i++) { r.readInt(); r.readBool(); }
-}
-function skipItemPackDisplayedPacks(r) {
-  const n = r.readInt(); for (let i = 0; i < n; i++) r.readBool();
-}
-function skipLoginBonus(r, gv) {
-  if (gv < 40) { const n = r.readInt(); for (let i = 0; i < n; i++) r.readBool(); }
-  else { const n = r.readInt(); for (let i = 0; i < n; i++) { r.readInt(); r.readBool(); } }
-}
-function skipDojo(r) {
-  const n = r.readInt(); for (let i = 0; i < n; i++) { r.readInt(); r.readInt(); }
-}
-function skipDojoItemLocks(r) { const n = r.readInt(); for (let i = 0; i < n; i++) r.readBool(); }
-function skipOutbreaks(r)  { const n = r.readInt(); for (let i = 0; i < n; i++) { r.readInt(); r.readInt(); } }
-function skipOutbreaks2(r) { const n = r.readInt(); for (let i = 0; i < n; i++) r.readInt(); }
-function skipOutbreaksCurrentOutbreaks(r) { const n = r.readInt(); for (let i = 0; i < n; i++) { r.readInt(); r.readInt(); } }
-function skipSchemeItems(r) { const n = r.readInt(); for (let i = 0; i < n; i++) { r.readInt(); r.readInt(); } }
-function skipUnlockPopups(r) { const n = r.readInt(); for (let i = 0; i < n; i++) r.readBool(); }
-function skipOtoto(r) {
-  const n = r.readInt();
-  for (let i = 0; i < n; i++) { r.readInt(); r.readInt(); r.readDouble(); }
-  r.readDouble();
-}
-function skipOtoto2(r, gv) {
-  r.readInt();
-  if (gv >= 50) { const n = r.readInt(); for (let i = 0; i < n; i++) r.readInt(); }
-  r.readDouble();
-}
-function skipExChapters(r) {
-  const n = r.readInt();
-  for (let i = 0; i < n; i++) { r.readInt(); r.readInt(); r.readBool(); }
-}
-function skipBeaconBase(r) {
-  const n = r.readInt();
-  for (let i = 0; i < n; i++) { r.readInt(); r.readInt(); r.readBool(); }
-}
-
-// ─── メインパーサー ───────────────────────────────────────────────────────────
-
-export function parseSaveFile(buf) {
-  const L = (msg) => console.log(msg); // ログ短縮
-  const peek = (r) => r.buf.readInt32LE(r.pos);
-
-  const cc = detectCC(buf);
-  if (!cc) throw new Error('国コードを検出できませんでした。セーブファイルが正しいか確認してください。');
-
-  const r = new DataReader(buf);
-  const isJP = cc === 'jp';
-  const notJP = !isJP;
-  const gv = r.readInt();
-  L('01 gv='+gv+' cc='+cc+' pos='+r.pos);
-
-  if (gv >= 10 || notJP) r.readBool();
-  r.readBool(); r.readBool();
-  const catfood = r.readInt();
-  r.readInt();
-  L('02 after flags+catfood pos='+r.pos);
-
-  r.readInt(); r.readInt(); r.readInt(); r.readInt(); r.readInt(); r.readInt();
-  r.readDouble();
-  r.readInt(); r.readInt(); r.readInt();
-  readDst(r, gv, isJP);
-  L('03 after date/time pos='+r.pos);
-
-  r.readInt(); r.readInt(); r.readInt();
-  r.readInt(); r.readInt(); r.readInt();
-  r.readInt(); r.readInt();
-  r.readIntList(3);
-  r.readInt(); r.readInt(); r.readInt();
-  r.readBool();
-  r.readInt(); r.readInt(); r.readInt(); r.readInt();
-  L('04 after misc ints pos='+r.pos);
-
-  skipLineUps(r, gv);       L('05 after LineUps pos='+r.pos);
-  skipStampData(r);          L('06 after StampData pos='+r.pos);
-  skipStoryChapters(r);      L('07 after StoryChapters pos='+r.pos);
-
-  if (gv >= 20 && gv <= 25) r.readIntList(231); else r.readIntList();
-  L('08 after enemy_guide pos='+r.pos);
-
-  const catCount = skipCatsUnlocked(r, gv);
-  L('09 after CatsUnlocked catCount='+catCount+' pos='+r.pos);
-  skipCatsUpgrade(r, gv, catCount);
-  L('10 after CatsUpgrade pos='+r.pos);
-  skipCatsCurrentForm(r, gv, catCount);
-  L('11 after CatsCurrentForm pos='+r.pos);
-  skipSpecialSkills(r);
-  L('12 after SpecialSkills pos='+r.pos+' peek='+peek(r));
-
-  if (gv <= 25)       { r.readIntList(5); r.readIntList(5); }
-  else if (gv === 26) { r.readIntList(6); r.readIntList(6); }
-  else                { r.readIntList();  r.readIntList(); }
-  L('13 after menu_unlocks pos='+r.pos);
-
-  skipBattleItems(r);
-  L('14 after BattleItems pos='+r.pos);
-  if (gv <= 26) r.readIntList(17); else r.readIntList();
-  L('15 after new_dialogs pos='+r.pos);
-
-  r.readIntList(20); r.readIntList(1); r.readIntList(1);
-  skipBattleItemsLocked(r);
-  L('16 after BattleItemsLocked pos='+r.pos);
-
-  readDst(r, gv, isJP);
-  r.readDate();
-  L('17 after date_2 pos='+r.pos);
-  skipStoryTreasureFestival(r);
-  L('18 after TreasureFestival pos='+r.pos);
-  readDst(r, gv, isJP);
-  r.readDate();
-  L('19 after date_3 pos='+r.pos);
-
-  if (gv <= 37) r.readInt();
-  r.readInt(); r.readInt(); r.readInt(); r.readInt(); r.readInt(); r.readInt();
-  r.readString();
-  L('20 after save_data_4_hash pos='+r.pos);
-
-  skipMySale(r);
-  L('21 after MySale pos='+r.pos);
-  r.readIntList(2);
-
-  if (gv <= 37) { r.readInt(); r.readBool(); }
-  r.readIntList(2);
-  L('22 after chara_flags pos='+r.pos);
-
-  const normalTickets = r.readInt();
-  const rareTickets   = r.readInt();
-  L('23 after tickets pos='+r.pos);
-
-  skipCatsGatyaSeen(r, gv, catCount);
-  L('24 after CatsGatyaSeen pos='+r.pos);
-  skipSpecialSkillsGatyaSeen(r);
-  L('25 after SpecialSkillsGatyaSeen pos='+r.pos);
-  skipCatsStorage(r, gv);
-  L('26 after CatsStorage pos='+r.pos);
-  skipEventChapters(r, gv);
-  L('27 after EventChapters pos='+r.pos);
-
-  r.readInt(); r.readInt();
-  if (gv >= 20)             r.readIntList(36);
-  if (gv >= 20 && gv <= 25) r.readIntList(110);
-  else if (gv >= 26)        r.readIntList();
-  L('28 after unlock_popups_8/unit_drops pos='+r.pos);
-
-  skipGatyaRareNormalSeed(r, gv);
-  r.readBool();
-  r.readBoolList(7);
-  r.readInt();
-  L('29 after gatya_seed/achievements pos='+r.pos);
-
-  readDst(r, gv, isJP);
-  r.readDate();
-  L('30 after date_4 pos='+r.pos);
-  skipGatya2(r);
-  L('31 after gatya2 pos='+r.pos);
-
-  if (notJP) r.readString();
-  r.readStringList();
-  L('32 after order_ids pos='+r.pos);
-
-  if (notJP) {
-    r.readDouble(); r.readDouble(); r.readDouble();
-    r.readStringList(); r.readBool(); r.readInt();
-  }
-  L('33 after notJP_block pos='+r.pos);
-
-  skipLineUps2(r, gv);
-  L('34 after LineUps2 pos='+r.pos);
-  skipEventLegendRestrictions(r, gv);
-  L('35 after LegendRestrictions pos='+r.pos);
-
-  if (gv <= 37) { r.readIntList(7); r.readIntList(7); r.readIntList(7); }
-
-  r.readDouble(); r.readDouble(); r.readDouble(); r.readDouble();
-  skipGatyaTradeProgress(r);
-  L('36 after tradeProgress pos='+r.pos);
-
-  if (gv <= 37) r.readStringList();
-  if (notJP) r.readDouble(); else r.readInt();
-  L('37 after getTimeSave2 pos='+r.pos);
-
-  if (gv >= 20 && gv <= 25)      r.readBoolList(12);
-  else if (gv >= 26 && gv < 39)  r.readBoolList();
-  L('38 after boollist pos='+r.pos);
-
-  skipCatsMaxUpgradeLevels(r, gv, catCount);
-  L('39 after CatsMaxUpgradeLevels pos='+r.pos);
-  skipSpecialSkillsMaxLevels(r);
-  L('40 after SpecialSkillsMaxLevels pos='+r.pos);
-  skipUserRankRewards(r, gv);
-  L('41 after UserRankRewards pos='+r.pos);
-  if (!notJP) r.readDouble();
-  skipCatsUnlockedForms(r, gv, catCount);
-  L('42 after CatsUnlockedForms pos='+r.pos);
-  // 400バイトダンプして inquiry_code パターンを探す
-  {
-    const _base = r.pos;
-    const _hex = [];
-    for (let _i = 0; _i < 400; _i++) _hex.push(r.buf[_base+_i].toString(16).padStart(2,'0'));
-    // 16バイトごとに出力
-    for (let _row = 0; _row < 25; _row++) {
-      L('DUMP '+(_base+_row*16)+': '+_hex.slice(_row*16, _row*16+16).join(' '));
-    }
-    // len=16 (0x10 00 00 00) の文字列パターンを探す
-    for (let _off = 0; _off < 380; _off++) {
-      const _len = r.buf.readInt32LE(_base + _off);
-      if (_len >= 8 && _len <= 30) {
-        const _str = r.buf.slice(_base+_off+4, _base+_off+4+_len).toString('latin1');
-        if (/^[a-zA-Z0-9]+$/.test(_str)) {
-          L('CANDIDATE @+'+_off+' len='+_len+' str="'+_str+'"');
-        }
-      }
-    }
-  }
-
-  // 44マーカーをスキャンして実際の位置を特定
-  {
-    const _scan_start = r.pos;
-    let _found44 = -1;
-    for (let _s = 0; _s < 2000; _s++) {
-      if (r.buf.readInt32LE(_scan_start + _s) === 44) {
-        _found44 = _scan_start + _s;
-        break;
-      }
-    }
-    L('SCAN: first int=44 found at pos='+_found44+' (offset from current: '+(_found44-_scan_start)+')');
-    // 64バイトダンプ
-    const _d = [];
-    for (let _i = 0; _i < 64; _i++) _d.push(r.buf[_scan_start+_i].toString(16).padStart(2,'0'));
-    L('SCAN DUMP: '+_d.join(' '));
-  }
-  L('43 before transfer_code pos='+r.pos+' peek='+peek(r));
-  // 80バイト詳細ダンプ
-  {
-    const _dp = r.pos;
-    const _hexArr = [];
-    for (let _i = 0; _i < 80; _i++) _hexArr.push(r.buf[_dp+_i].toString(16).padStart(2,'0'));
-    L('DUMP80: '+_hexArr.join(' '));
-    // 各オフセットでint解釈
-    for (let _off = 0; _off <= 16; _off += 4) {
-      const _v = r.buf.readInt32LE(_dp + _off);
-      L('  int@+'+_off+'='+_v);
-    }
-    // ASCII文字列の候補を探す（長さ1-30のところ）
-    for (let _off = 0; _off <= 20; _off++) {
-      const _len = r.buf.readInt32LE(_dp + _off);
-      if (_len > 0 && _len <= 30) {
-        const _str = r.buf.slice(_dp+_off+4, _dp+_off+4+_len).toString('utf-8');
-        L('  candidate string @+'+_off+' len='+_len+' val="'+_str+'"');
-      }
-    }
-  }
-  // 安全に読む（長すぎたらスキップ）
-  try {
-    const _tc_len = r.buf.readInt32LE(r.pos);
-    if (_tc_len >= 0 && _tc_len <= 200) {
-      r.readString();
-    } else {
-      r.readInt(); // lengthだけ消費
-      L('43w transfer_code len='+_tc_len+' skipped');
-    }
-    const _cc_len = r.buf.readInt32LE(r.pos);
-    if (_cc_len >= 0 && _cc_len <= 200) {
-      r.readString();
-    } else {
-      r.readInt();
-      L('43w confirmation_code len='+_cc_len+' skipped');
-    }
-    r.readBool();
-    L('44 after transfer_fields pos='+r.pos);
-  } catch(e) {
-    L('44 transfer_fields error: '+e.message+' pos='+r.pos);
-  }
-
-  let inquiryCode = '', playTime = 0;
-
-  if (gv >= 20) {
-    L('45 before ItemRewardChapters pos='+r.pos+' peek='+peek(r));
-    skipItemRewardChapters(r, gv);
-    L('46 after ItemRewardChapters pos='+r.pos);
-    skipTimedScoreChapters(r, gv);
-    L('47 after TimedScoreChapters pos='+r.pos+' peek='+peek(r));
-    inquiryCode = r.readString();
-    L('48 inquiryCode='+inquiryCode+' pos='+r.pos);
-    const op = readOfficerPass(r);
-    playTime = op.playTime;
-    L('49 playTime='+playTime+' pos='+r.pos);
-    r.readByte(); r.readInt();
-    if (notJP) r.readBool();
-    L('50 before assertInt(44) pos='+r.pos+' peek='+peek(r));
-    r.assertInt(44);
-    r.readInt();
-    skipStoryItfTimedScores(r);
-    r.readInt();
-    if (gv > 26) r.readIntList();
-    r.readBool();
-    L('51 before assertInt(45) pos='+r.pos+' peek='+peek(r));
-    r.assertInt(45);
-  }
-  if (gv >= 21) {
-    L('52 before assertInt(46) pos='+r.pos+' peek='+peek(r));
-    r.assertInt(46);
-    skipGatyaEventSeed(r, gv);
-    if (gv < 34) { r.readIntList(100); r.readIntList(100); }
-    else         { r.readIntList();    r.readIntList(); }
-    L('53 before assertInt(47) pos='+r.pos+' peek='+peek(r));
-    r.assertInt(47);
-  }
-  if (gv >= 22) { L('54 before assertInt(48) pos='+r.pos+' peek='+peek(r)); r.assertInt(48); }
-  if (gv >= 23) {
-    if (!notJP) r.readBool();
-    r.readDouble();
-    if (gv < 26) r.readIntList(44); else r.readIntList();
-    r.readBool(); r.readBoolList(3); r.readDouble(); r.readBoolList(3); r.readInt();
-    L('55 before assertInt(49) pos='+r.pos+' peek='+peek(r));
-    r.assertInt(49);
-  }
-  if (gv >= 24) { L('56 before assertInt(50) pos='+r.pos+' peek='+peek(r)); r.assertInt(50); }
-  if (gv >= 25) { L('57 before assertInt(51) pos='+r.pos+' peek='+peek(r)); r.assertInt(51); }
-  if (gv >= 26) {
-    skipCatsCatguideCollected(r);
-    L('58 before assertInt(52) pos='+r.pos+' peek='+peek(r));
-    r.assertInt(52);
-  }
-  if (gv >= 27) {
-    r.readDouble(); r.readDouble(); r.readDouble(); r.readDouble(); r.readDouble();
-    L('59 after 5xDouble pos='+r.pos);
-    r.readIntList(); skipCatsFourthForms(r); skipCatsCateyesUsed(r);
-    r.readIntList(); r.readIntList();
-    L('60 after catfruit/catseyes pos='+r.pos);
-    skipGamatoto(r);
-    L('61 after Gamatoto pos='+r.pos);
-    r.readBoolList();
-    skipExChapters(r);
-    L('62 before assertInt(53) pos='+r.pos+' peek='+peek(r));
-    r.assertInt(53);
-  }
-  if (gv >= 29) {
-    skipGamatoto2(r);
-    L('63 before assertInt(54) pos='+r.pos+' peek='+peek(r));
-    r.assertInt(54);
-    skipItemPack(r);
-    L('64 before assertInt(54) pos='+r.pos+' peek='+peek(r));
-    r.assertInt(54);
-  }
-  if (gv >= 30) {
-    skipGamatotoSkin(r);
-    r.readInt(); // platinum_tickets
-    skipLoginBonus(r, gv);
-    L('65 after LoginBonus pos='+r.pos);
-    if (gv < 101000) r.readBoolList();
-    r.readDouble(); r.readDouble();
-    r.readIntTupleList(16);
-    r.readInt(); r.readInt(); r.readInt(); r.readInt();
-    L('66 before assertInt(55) pos='+r.pos+' peek='+peek(r));
-    r.assertInt(55);
-  }
-  if (gv >= 31) {
-    r.readBool(); skipItemRewardItemObtains(r); skipGatyaStepup(r); r.readInt();
-    L('67 before assertInt(56) pos='+r.pos+' peek='+peek(r));
-    r.assertInt(56);
-  }
-  if (gv >= 32) {
-    r.readBool(); skipCatsFavorites(r);
-    L('68 before assertInt(57) pos='+r.pos+' peek='+peek(r));
-    r.assertInt(57);
-  }
-  if (gv >= 33) {
-    skipDojo(r); skipDojoItemLocks(r);
-    L('69 before assertInt(58) pos='+r.pos+' peek='+peek(r));
-    r.assertInt(58);
-  }
-  if (gv >= 34) {
-    r.readDouble(); skipOutbreaks(r); skipOutbreaks2(r); skipSchemeItems(r);
-    L('70 after gv34 block pos='+r.pos);
-  }
-
-  let energyPenaltyTimestamp = 0;
-  if (gv >= 35) {
-    skipOutbreaksCurrentOutbreaks(r);
-    r.readIntBoolDict();
-    energyPenaltyTimestamp = r.readDouble();
-    L('71 before assertInt(60) pos='+r.pos+' peek='+peek(r));
-    r.assertInt(60);
-  }
-  if (gv >= 36) {
-    skipCatsCharaNewFlags(r); r.readBool(); skipItemPackDisplayedPacks(r);
-    L('72 before assertInt(61) pos='+r.pos+' peek='+peek(r));
-    r.assertInt(61);
-  }
-  if (gv >= 38) {
-    skipUnlockPopups(r);
-    L('73 before assertInt(63) pos='+r.pos+' peek='+peek(r));
-    r.assertInt(63);
-  }
-  if (gv >= 39) {
-    skipOtoto(r); skipOtoto2(r, gv); r.readDouble();
-    L('74 before assertInt(64) pos='+r.pos+' peek='+peek(r));
-    r.assertInt(64);
-  }
-  L('75 before _parseLaterSections pos='+r.pos);
-
-  const late = _parseLaterSections(r, gv, notJP);
-
-  return {
-    cc, gameVersion: gv, inquiryCode,
-    energyPenaltyTimestamp,
-    passwordRefreshToken: late.passwordRefreshToken,
-    playTime, userRank: 0,
-    catfood, rareTickets,
-    platinumTickets: late.platinumTickets,
-    legendTickets: late.legendTickets,
-    rawBytes: buf,
-  };
-}
-
-// ─── gv>=40 以降の後半セクション ─────────────────────────────────────────────
-
-function _parseLaterSections(r, gv, notJP) {
-  let passwordRefreshToken = '', legendTickets = 0, platinumTickets = 0;
-  try {
-    if (gv >= 40) {
-      r.readBool(); r.readBool();
-      const nm = r.readInt();
-      for (let i = 0; i < nm; i++) { r.readInt(); r.readInt(); r.readBool(); }
-      r.assertInt(65);
-    }
-    if (gv >= 41) {
-      r.readInt();
-      const nc = r.readInt(); for (let i = 0; i < nc; i++) r.readBool();
-      r.assertInt(66);
-    }
-    if (gv >= 43) {
-      const nm = r.readInt(); for (let i = 0; i < nm; i++) { r.readInt(); r.readInt(); }
-      r.assertInt(67);
-    }
-    if (gv >= 45) {
-      for (let set = 0; set < 2; set++) {
-        const n = r.readInt();
-        for (let i = 0; i < n; i++) { const ns = r.readInt(); for (let j = 0; j < ns; j++) r.readInt(); }
-      }
-      r.assertInt(68);
-    }
-    if (gv >= 50) { r.readInt(); r.assertInt(69); }
-    if (gv >= 52) {
-      const nt = r.readInt(); for (let i = 0; i < nt; i++) { r.readInt(); r.readInt(); }
-      r.assertInt(70);
-    }
-    if (gv >= 70000) { skipBeaconBase(r); r.assertInt(70000); }
-    if (gv >= 80000) {
-      const nt = r.readInt(); for (let i = 0; i < nt; i++) r.readInt();
-      r.assertInt(80000);
-    }
-    if (gv >= 80100) {
-      const nm = r.readInt(); for (let i = 0; i < nm; i++) { r.readInt(); r.readInt(); r.readInt(); }
-      r.assertInt(80100);
-    }
-    if (gv >= 80200) {
-      r.readBool(); r.readShort(); r.readShort(); r.readShort();
-      r.assertInt(80200);
-    }
-    if (gv >= 80300) { r.readByte(); r.readBool(); r.assertInt(80300); }
-    if (gv >= 80500) { r.readIntList(); r.assertInt(80500); }
-    if (gv >= 80600) {
-      const n = r.readShort(); r.readIntList(n);
-      const nlq = r.readInt(); for (let i = 0; i < nlq; i++) { r.readInt(); r.readBool(); }
-      r.readShort(); r.readByte();
-      r.assertInt(80600);
-    }
-    if (gv >= 80700) {
-      const n = r.readInt();
-      for (let i = 0; i < n; i++) { r.readInt(); r.readIntList(); }
-      r.assertInt(80700);
-    }
-    if (gv >= 100600 && notJP) { r.readByte(); r.assertInt(100600); }
-    if (gv >= 81000) { r.readByte(); r.assertInt(81000); }
-    if (gv >= 90000) {
-      const nm = r.readInt(); for (let i = 0; i < nm; i++) r.readBool();
-      const ngs = r.readInt(); for (let i = 0; i < ngs; i++) { r.readInt(); r.readInt(); }
-      r.assertInt(90000);
-    }
-    if (gv >= 90100) { r.readShort(); r.readShort(); r.readInt(); r.readDouble(); r.assertInt(90100); }
-    if (gv >= 90300) {
-      const n = r.readShort();
-      for (let i = 0; i < n; i++) {
-        r.readInt(); r.readInt(); r.readShort(); r.readInt(); r.readInt(); r.readInt(); r.readShort();
-      }
-      const nd = r.readShort(); for (let i = 0; i < nd; i++) { r.readInt(); r.readDouble(); }
-      const ng = r.readInt(); for (let i = 0; i < ng; i++) r.readBool();
-      r.assertInt(90300);
-    }
-    if (gv >= 90400) {
-      const ne = r.readInt(); for (let i = 0; i < ne; i++) r.readBool();
-      const ne2 = r.readInt(); for (let i = 0; i < ne2; i++) { r.readInt(); r.readInt(); }
-      const ncs = r.readInt(); for (let i = 0; i < ncs; i++) r.readBool();
-      r.assertInt(90400);
-    }
-    if (gv >= 90500) {
-      const ncg = r.readInt(); for (let i = 0; i < ncg; i++) r.readBool();
-      r.readBool(); r.readDouble(); r.readDouble(); r.readInt();
-      if (gv >= 100300) { r.readByte(); r.readBool(); r.readDouble(); r.readDouble(); }
-      if (gv >= 130700) {
-        const n1 = r.readShort(); for (let i = 0; i < n1; i++) { r.readInt(); r.readByte(); }
-        const n2 = r.readShort(); for (let i = 0; i < n2; i++) { r.readInt(); r.readDouble(); }
-      }
-      if (gv >= 140100) { const n3 = r.readShort(); for (let i = 0; i < n3; i++) { r.readInt(); r.readDouble(); } }
-      r.assertInt(90500);
-    }
-    if (gv >= 90700) {
-      const nt = r.readInt(); for (let i = 0; i < nt; i++) { r.readInt(); r.readInt(); }
-      const nu = r.readShort();
-      for (let i = 0; i < nu; i++) {
-        r.readShort(); const nb = r.readByte();
-        for (let j = 0; j < nb; j++) { r.readByte(); r.readShort(); }
-      }
-      r.assertInt(90700);
-    }
-    if (gv >= 90800) { r.readInt(); r.readInt(); r.assertInt(90800); }
-    if (gv >= 90900) {
-      const ns = r.readInt(); for (let i = 0; i < ns; i++) { r.readInt(); r.readInt(); }
-      r.readDouble(); r.readDouble();
-      r.assertInt(90900);
-    }
-    if (gv >= 91000) { skipLineUpsSlotNames(r, gv); r.assertInt(91000); }
-    if (gv >= 100000) {
-      legendTickets = r.readInt();
-      const n = r.readUByte();
-      for (let i = 0; i < n; i++) { r.readUByte(); r.readInt(); }
-      r.readBool(); r.readBool();
-      passwordRefreshToken = r.readString();
-      r.readBool(); r.readUByte(); r.readUByte(); r.readDouble(); r.readDouble();
-      r.assertInt(100000);
-    }
-    if (gv >= 100100) { r.readInt(); r.assertInt(100100); }
-    if (gv >= 100300) { skipBattleItemsEndless(r); r.assertInt(100300); }
-    if (gv >= 100400) {
-      const n = r.readUByte(); r.readIntList(n); r.readBool();
-      r.assertInt(100400);
-    }
-    if (gv >= 100600) {
-      r.readDouble();
-      platinumTickets = r.readInt();
-      r.assertInt(100600);
-    }
-  } catch (e) {
-    console.warn('Late section parse warning (non-fatal):', e.message);
-  }
-  return { passwordRefreshToken, legendTickets, platinumTickets };
-}
+
+    @staticmethod
+    def deserialize(data: dict[str, Any]) -> TalentOrb:
+        return TalentOrb(data.get("id", 0), data.get("value", 0))
+
+    def __repr__(self):
+        return f"Orb({self.id}, {self.value})"
+
+    def __str__(self):
+        return self.__repr__()
+
+
+class TalentOrbs:
+    def __init__(self, orbs: dict[int, TalentOrb]):
+        self.orbs = orbs
+
+    @staticmethod
+    def init() -> TalentOrbs:
+        return TalentOrbs({})
+
+    @staticmethod
+    def read(stream: core.Data, gv: core.GameVersion) -> TalentOrbs:
+        length = stream.read_short()
+        orbs: dict[int, TalentOrb] = {}
+        for _ in range(length):
+            orb = TalentOrb.read(stream, gv)
+            orbs[orb.id] = orb
+        return TalentOrbs(orbs)
+
+    def write(self, stream: core.Data, gv: core.GameVersion):
+        stream.write_short(len(self.orbs))
+        for orb in self.orbs.values():
+            orb.write(stream, gv)
+
+    def serialize(self) -> list[dict[str, Any]]:
+        return [orb.serialize() for orb in self.orbs.values()]
+
+    @staticmethod
+    def deserialize(data: list[dict[str, Any]]) -> TalentOrbs:
+        return TalentOrbs(
+            {orb.get("id", 0): TalentOrb.deserialize(orb) for orb in data}
+        )
+
+    def __repr__(self):
+        return f"TalentOrbs({self.orbs})"
+
+    def __str__(self):
+        return self.__repr__()
+
+    def set_orb(self, id: int, value: int):
+        self.orbs[id] = TalentOrb(id, value)
+
+
+class RawOrbInfo:
+    def __init__(
+        self,
+        orb_id: int,
+        rank_id: int,
+        effect_id: int,
+        value: list[int],
+        target_id: int | None,
+    ):
+        self.orb_id = orb_id
+        self.rank_id = rank_id
+        self.effect_id = effect_id
+        self.value = value
+        self.target_id = target_id
+
+
+class OrbInfo:
+    def __init__(
+        self,
+        raw_orb_info: RawOrbInfo,
+        rank: str,
+        target: str | None,
+        effect: str,
+    ):
+        self.raw_orb_info = raw_orb_info
+        self.rank = rank
+        self.target = target
+        self.effect = effect
+
+    def __str__(self) -> str:
+        """Get the string representation of the OrbInfo
+
+        Returns:
+            str: The string representation of the OrbInfo
+        """
+        target_color = color_from_enemy_type(self.raw_orb_info.target_id)
+        rank_color = color_from_grade(self.raw_orb_info.rank_id)
+        effect_color = color_from_effect(self.raw_orb_info.effect_id)
+        effect_text = self.effect.replace("%@", "{}")
+        effect_text = f"<{effect_color}>{effect_text}</>"
+        target = self.target
+        effect = effect_text.format(
+            f"<{rank_color}>{self.rank}</>",
+            f"<{target_color}>{target}</>" if target else "",
+        )
+        return f"{effect}"
+
+    def to_colortext(self) -> str:
+        """Get the string representation of the OrbInfo with color
+
+        Returns:
+            str: The string representation of the OrbInfo with color
+        """
+        return str(self)
+
+    @staticmethod
+    def create_unknown(orb_id: int) -> OrbInfo:
+        """Create an unknown OrbInfo
+
+        Args:
+            orb_id (int): The id of the orb
+
+        Returns:
+            OrbInfo: The unknown OrbInfo
+        """
+        return OrbInfo(
+            RawOrbInfo(orb_id, 0, 0, [], 0),
+            "???",
+            "",
+            "%@:%@",
+        )
+
+
+class OrbInfoList:
+    equipment_data_file_name = "DataLocal/equipmentlist.json"
+    grade_list_file_name = "DataLocal/equipmentgrade.csv"
+    attribute_list_file_name = "resLocal/attribute_explonation.tsv"
+    effect_list_file_name = "resLocal/equipment_explonation.tsv"
+
+    def __init__(self, orb_info_list: list[OrbInfo]):
+        """Initialize the OrbInfoList class
+
+        Args:
+            orb_info_list (list[OrbInfo]): The list of OrbInfo
+        """
+        self.orb_info_list = orb_info_list
+
+    @staticmethod
+    def create(save_file: core.SaveFile) -> OrbInfoList | None:
+        """Create an OrbInfoList
+
+        Args:
+            save_file (core.SaveFile): The save file
+
+        Returns:
+            OrbInfoList | None: The OrbInfoList
+        """
+        gdg = core.core_data.get_game_data_getter(save_file)
+        json_data_file = gdg.download_from_path(OrbInfoList.equipment_data_file_name)
+        grade_list_file = gdg.download_from_path(OrbInfoList.grade_list_file_name)
+        attribute_list_file = gdg.download_from_path(
+            OrbInfoList.attribute_list_file_name
+        )
+        equipment_list_file = gdg.download_from_path(OrbInfoList.effect_list_file_name)
+        if (
+            json_data_file is None
+            or grade_list_file is None
+            or attribute_list_file is None
+            or equipment_list_file is None
+        ):
+            return None
+        raw_orbs = OrbInfoList.parse_json_data(json_data_file)
+        if raw_orbs is None:
+            return None
+        orbs = OrbInfoList.load_names(
+            raw_orbs, grade_list_file, attribute_list_file, equipment_list_file
+        )
+        return OrbInfoList(orbs)
+
+    @staticmethod
+    def parse_json_data(json_data: core.Data) -> list[RawOrbInfo] | None:
+        """Parse the json data of the equipment
+
+        Args:
+            json_data (core.Data): The json data
+
+        Returns:
+            list[RawOrbInfo]: The list of RawOrbInfo
+        """
+        try:
+            data: dict[str, Any] = core.JsonFile.from_data(json_data).to_object()
+        except core.JSONDecodeError:
+            return None
+        orb_info_list: list[RawOrbInfo] = []
+        for id, orb in enumerate(data["ID"]):
+            grade_id = orb["gradeID"]
+            content = orb["content"]
+            value = orb["value"]
+            attribute = orb.get("attribute")
+            orb_info_list.append(RawOrbInfo(id, grade_id, content, value, attribute))
+        return orb_info_list
+
+    @staticmethod
+    def load_names(
+        raw_orb_info: list[RawOrbInfo],
+        grade_data: core.Data,
+        attribute_data: core.Data,
+        effect_data: core.Data,
+    ) -> list[OrbInfo]:
+        """Load the names of the equipment
+
+        Args:
+            raw_orb_info (list[RawOrbInfo]): The list of RawOrbInfo
+            grade_data (core.Data): Raw data of the grade list
+            attribute_data (core.Data): Raw data of the attribute list
+            effect_data (core.Data): Raw data of the effect list
+
+        Returns:
+            list[OrbInfo]: The list of OrbInfo
+        """
+        grade_csv = core.CSV(grade_data)
+        attribute_tsv = core.CSV(attribute_data, "\t")
+        effect_csv = core.CSV(effect_data, "\t")
+        orb_info_list: list[OrbInfo] = []
+        for orb in raw_orb_info:
+            grade = grade_csv[orb.rank_id][3].to_str()
+            effect = effect_csv[orb.effect_id][0].to_str()
+
+            if orb.target_id is not None:
+                attribute = attribute_tsv[orb.target_id][0].to_str()
+            else:
+                attribute = None
+
+            orb_info_list.append(OrbInfo(orb, grade, attribute, effect))
+        return orb_info_list
+
+    def get_orb_info(self, orb_id: int) -> OrbInfo | None:
+        """Get the OrbInfo from the id
+
+        Args:
+            orb_id (int): The id of the orb
+
+        Returns:
+            OrbInfo | None: The OrbInfo
+        """
+        try:
+            return self.orb_info_list[orb_id]
+        except IndexError:
+            return None
+
+    def get_orb_from_components(
+        self,
+        grade: str,
+        attribute: str | None,
+        effect: str,
+    ) -> OrbInfo | None:
+        """Get the OrbInfo from the components
+
+        Args:
+            grade (str): The grade of the orb
+            attribute (str | None): The attribute of the orb. None if applies to all attributes
+            effect (str): The effect of the orb
+
+        Returns:
+            OrbInfo | None: The OrbInfo
+        """
+        for orb in self.orb_info_list:
+            if orb.rank == grade and orb.target == attribute and orb.effect == effect:
+                return orb
+        return None
+
+    def does_match_orb_str(self, str_1: str | None, str_2: str | None) -> bool:
+        if str_2 == "*":
+            return True
+
+        if str_1 is None:
+            return str_2 is None
+        if str_2 is None:
+            return False
+
+        return str_1.lower() == str_2.lower()
+
+    def get_orbs_from_component_fuzzy(
+        self,
+        grade: str,
+        attribute: str | None,
+        effect: str,
+    ) -> list[OrbInfo]:
+        """Get the OrbInfo from the components matching the first word of the effect and lowercased
+
+        Args:
+            grade (str): The grade of the orb
+            attribute (str | None): The attribute of the orb. None if all
+            effect (str): The effect of the orb
+
+        Returns:
+            list[OrbInfo]: The list of OrbInfo
+        """
+        orbs: list[OrbInfo] = []
+        for orb in self.orb_info_list:
+            if (
+                (orb.rank.lower() == grade.lower() or grade == "*")
+                and (self.does_match_orb_str(orb.target, attribute))
+                and (orb.effect == effect or effect == "*")
+            ):
+                orbs.append(orb)
+        return orbs
+
+    def get_all_grades(self) -> list[str]:
+        """Get all the grades
+
+        Returns:
+            list[str]: The list of grades
+        """
+
+        data = list(
+            set([(orb.rank, orb.raw_orb_info.rank_id) for orb in self.orb_info_list])
+        )
+
+        data.sort(key=lambda id: id[1])
+
+        return [orb[0] for orb in data]
+
+    def get_all_attributes(self) -> list[str | None]:
+        """Get all the attributes
+
+        Returns:
+            list[str]: The list of attributes
+        """
+
+        data = list(
+            set(
+                [
+                    (orb.target, orb.raw_orb_info.target_id)
+                    for orb in self.orb_info_list
+                    if orb.target is not None and orb.raw_orb_info.target_id is not None
+                ]
+            )
+        )
+
+        data.sort(key=lambda id: id[1])
+
+        return [orb[0] for orb in data]
+
+    def get_all_effects(self) -> list[str]:
+        """Get all the effects
+
+        Returns:
+            list[str]: The list of effects
+        """
+
+        data = list(
+            set(
+                [(orb.effect, orb.raw_orb_info.effect_id) for orb in self.orb_info_list]
+            )
+        )
+
+        data.sort(key=lambda id: id[1])
+
+        return [orb[0] for orb in data]
+
+
+class SaveOrb:
+    """Represents a saved orb in the save file"""
+
+    def __init__(self, orb: OrbInfo, count: int):
+        """Initialize the SaveOrb class
+
+        Args:
+            orb (OrbInfo): The OrbInfo
+            count (int): The amount of the orb
+        """
+        self.count = count
+        self.orb = orb
+
+
+def color_from_enemy_type(target_id: int | None) -> str:
+    if target_id is None:
+        return color.ColorHex.WHITE
+    if target_id == 0:
+        return color.ColorHex.RED
+    elif target_id == 1:
+        return color.ColorHex.GREEN
+    elif target_id == 2:
+        return color.ColorHex.DARK_GREY
+    elif target_id == 3:
+        return color.ColorHex.LIGHT_GREY
+    elif target_id == 4:
+        return color.ColorHex.YELLOW
+    elif target_id == 5:
+        return color.ColorHex.BLUE
+    elif target_id == 6:
+        return color.ColorHex.MAGENTA
+    elif target_id == 7:
+        return color.ColorHex.DARK_GREEN
+    elif target_id == 8:
+        return color.ColorHex.WHITE
+    elif target_id == 9:
+        return color.ColorHex.DARK_MAGENTA
+    elif target_id == 10:
+        return color.ColorHex.ORANGE
+    elif target_id == 11:
+        return color.ColorHex.CYAN
+    return color.ColorHex.BLACK
+
+
+def color_from_grade(grade_id: int) -> str:
+    if grade_id == 0:
+        return color.ColorHex.RED
+    elif grade_id == 1:
+        return color.ColorHex.ORANGE
+    elif grade_id == 2:
+        return color.ColorHex.YELLOW
+    elif grade_id == 3:
+        return color.ColorHex.GREEN
+    elif grade_id == 4:
+        return color.ColorHex.BLUE
+    return color.ColorHex.BLACK
+
+
+def color_from_effect(effect_id: int):
+    if effect_id == 0:
+        return color.ColorHex.RED
+    elif effect_id == 1:
+        return color.ColorHex.GREEN
+    elif effect_id == 2:
+        return color.ColorHex.DARK_GREY
+    elif effect_id == 3:
+        return color.ColorHex.LIGHT_GREY
+    elif effect_id == 4:
+        return color.ColorHex.YELLOW
+    elif effect_id == 5:
+        return color.ColorHex.BLUE
+    elif effect_id == 6:
+        return color.ColorHex.MAGENTA
+    elif effect_id == 7:
+        return color.ColorHex.DARK_GREEN
+    elif effect_id == 8:
+        return color.ColorHex.WHITE
+    elif effect_id == 9:
+        return color.ColorHex.DARK_MAGENTA
+    elif effect_id == 10:
+        return color.ColorHex.ORANGE
+
+    return color.ColorHex.BLACK
+
+
+class SaveOrbs:
+    def __init__(
+        self,
+        orbs: dict[int, SaveOrb],
+        orb_info_list: OrbInfoList,
+    ):
+        """Initialize the SaveOrbs class
+
+        Args:
+            orbs (dict[int, SaveOrb]): The orbs
+            orb_info_list (OrbInfoList): The orb info list
+        """
+        self.orbs = orbs
+        self.orb_info_list = orb_info_list
+
+    @staticmethod
+    def from_save_file(save_file: core.SaveFile) -> SaveOrbs | None:
+        """Create a SaveOrbs from the save stats
+
+        Args:
+            save_file (core.SaveFile): The save file
+
+        Returns:
+            SaveOrbs | None: The SaveOrbs
+        """
+        orb_info_list = OrbInfoList.create(save_file)
+        if orb_info_list is None:
+            return None
+        orbs: dict[int, SaveOrb] = {}
+        for orb_id, orb in save_file.talent_orbs.orbs.items():
+            try:
+                orb_info = orb_info_list.orb_info_list[int(orb_id)]
+            except IndexError:
+                orb_info = OrbInfo.create_unknown(int(orb_id))
+            orbs[int(orb_id)] = SaveOrb(orb_info, orb.value)
+
+        return SaveOrbs(orbs, orb_info_list)
+
+    def print(self):
+        """Print the orbs as a formatted list"""
+        self.sort_orbs()
+        total_orbs = sum([orb.count for orb in self.orbs.values()])
+        color.ColoredText.localize("total_current_orbs", total_orbs=total_orbs)
+        color.ColoredText.localize(
+            "total_current_orb_types", total_types=len(self.orbs)
+        )
+        color.ColoredText.localize("current_orbs")
+        for orb in self.orbs.values():
+            color.ColoredText(f"<@q>{orb.count}</> {orb.orb.to_colortext()}")
+
+    def sort_orbs(self):
+        """Sort the orbs by attribute, effect, grade and id in that order with attribute being the most important"""
+        orbs = list(self.orbs.values())
+        orbs.sort(key=lambda orb: orb.orb.raw_orb_info.orb_id)
+        orbs.sort(key=lambda orb: orb.orb.raw_orb_info.rank_id)
+        orbs.sort(key=lambda orb: orb.orb.raw_orb_info.effect_id)
+        orbs.sort(key=lambda orb: orb.orb.raw_orb_info.target_id or -1)
+
+    def localize_attribute(self, attribute: str | None) -> str | None:
+        if attribute is not None:
+            return attribute
+
+    def edit(self):
+        """Edit the orbs"""
+        # this code sucks quit a lot, but it works and i can't be bothered making it better atm
+        self.print()
+        all_grades = self.orb_info_list.get_all_grades()
+        all_grades = [grade for grade in all_grades]
+        all_grades.sort()
+        all_attributes = self.orb_info_list.get_all_attributes()
+        all_attributes = [
+            self.localize_attribute(attribute) or ""
+            for attribute in all_attributes
+            if attribute
+        ]
+        all_attributes.sort()
+        all_effects = self.orb_info_list.get_all_effects()
+        all_effects.sort()
+        all_effects_str = [
+            effect.lower().replace("%@", "").replace(":", "").strip() + f" ({i})"
+            for (i, effect) in enumerate(all_effects)
+        ]
+        all_effect_ids = [i for i in range(len(all_effects))]
+
+        all_grades_str = "".join(
+            f"<{color_from_grade(self.orb_info_list.get_all_grades().index(grade))}>{grade}</>,"
+            for grade in all_grades
+        )
+
+        all_attributes_str = "".join(
+            f"<{color_from_enemy_type(self.orb_info_list.get_all_attributes().index(attribute))}>{attribute}</>,"
+            for attribute in all_attributes
+        )
+
+        all_effects_str = "".join(
+            f"<{color_from_effect(self.orb_info_list.get_all_effects().index(effect))}>{effect_str}</>,"
+            for effect_str, effect in zip(all_effects_str, all_effects)
+        )
+
+        color.ColoredText.localize(
+            "edit_orbs_help",
+            escape=False,
+            all_grades_str=all_grades_str,
+            all_attributes_str=all_attributes_str,
+            all_effects_str=all_effects_str,
+        )
+
+        orb_input_selection = (
+            color.ColoredInput()
+            .localize("orb_select")
+            .lower()
+            .replace("angle", "angel")
+            .split(",")
+        )
+        if orb_input_selection == [core.core_data.local_manager.get_key("quit_key")]:
+            return
+
+        orb_selection: list[OrbInfo] = []
+
+        for orb_input in orb_input_selection:
+            grade = None
+            attribute = None
+            effect = None
+            orb_input = orb_input.strip()
+            parts = orb_input.split(" ")
+            parts = [part.lower() for part in parts if part != ""]
+            if len(parts) == 0:
+                continue
+            if parts[0] == "*":
+                orb_selection = self.orb_info_list.orb_info_list
+                break
+            for available_grade in all_grades:
+                if available_grade.lower() in parts:
+                    grade = available_grade
+                    break
+            for available_attribute in all_attributes:
+                if available_attribute.lower() in parts:
+                    attribute = available_attribute
+                    break
+            for available_effect in all_effect_ids:
+                if str(available_effect) in parts:
+                    effect = all_effects[available_effect]
+                    break
+            if grade is None:
+                grade = "*"
+            if attribute is None:
+                attribute = "*"
+            if effect is None:
+                effect = "*"
+            orbs = self.orb_info_list.get_orbs_from_component_fuzzy(
+                grade, attribute, effect
+            )
+            orb_selection.extend(orbs)
+
+        orb_selection = list(set(orb_selection))
+        orb_selection.sort(key=lambda orb: orb.raw_orb_info.orb_id)
+        orb_selection.sort(key=lambda orb: orb.raw_orb_info.rank_id)
+        orb_selection.sort(key=lambda orb: orb.raw_orb_info.effect_id)
+        orb_selection.sort(key=lambda orb: orb.raw_orb_info.target_id or -1)
+
+        color.ColoredText.localize("selected_orbs")
+
+        for orb in orb_selection:
+            color.ColoredText(orb.to_colortext())
+
+        max_orbs = core.core_data.max_value_manager.get("talent_orbs")
+
+        if len(orb_selection) == 0:
+            return
+        if len(orb_selection) == 1:
+            individual = True
+        else:
+            individual = dialog_creator.ChoiceInput.from_reduced(
+                ["individual", "edit_all_at_once"],
+                dialog="edit_orbs_individually",
+                single_choice=True,
+            ).single_choice()
+            if individual is None:
+                return
+            individual = True if individual == 1 else False
+        if individual:
+            for orb in orb_selection:
+                orb_id = orb.raw_orb_info.orb_id
+                try:
+                    orb_count = self.orbs[orb_id].count
+                except KeyError:
+                    orb_count = 0
+
+                orb_count = dialog_creator.SingleEditor(
+                    orb.to_colortext(), orb_count, max_orbs
+                ).edit(escape_text=False)
+
+                self.orbs[orb_id] = SaveOrb(orb, orb_count)
+
+        else:
+            int_input = dialog_creator.IntInput(max_orbs)
+            orb_count = int_input.get_input_locale_while(
+                "edit_orbs_all", {"max": max_orbs}, escape=False
+            )
+            if orb_count is None:
+                return
+            orb_count = int_input.clamp_value(orb_count)
+            for orb in orb_selection:
+                orb_id = orb.raw_orb_info.orb_id
+                self.orbs[orb_id] = SaveOrb(orb, orb_count)
+
+        self.print()
+
+    def save(self, save_file: core.SaveFile):
+        """Save the orbs to the save_stats
+
+        Args:
+            save_file (core.SaveFile): The save_stats to save the orbs to
+        """
+        for orb_id, orb in self.orbs.items():
+            save_file.talent_orbs.orbs[orb_id] = core.TalentOrb(orb_id, orb.count)
+
+    @staticmethod
+    def edit_talent_orbs(save_file: core.SaveFile):
+        """Edit the talent orbs
+
+        Args:
+            save_file (core.SaveFile): The save_stats to edit the orbs of
+
+        """
+        save_orbs = SaveOrbs.from_save_file(save_file)
+        if save_orbs is None:
+            color.ColoredText.localize("failed_to_load_orbs")
+            return None
+        save_orbs.edit()
+        save_orbs.save(save_file)
