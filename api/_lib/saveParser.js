@@ -664,6 +664,19 @@ export function parseSaveFile(buf) {
   if (!notJP) r.readDouble();
   skipCatsUnlockedForms(r, gv, catCount);         L('42 pos='+r.pos);
 
+  // 広域スキャン: pos=354779から500バイト先まで 44(0x2c000000)を探す
+  {
+    const _base = r.pos;
+    let found44 = null;
+    for (let _i = 0; _i < 2000; _i++) {
+      const _v = r.buf.readInt32LE(_base + _i);
+      if (_v === 44) { found44 = _base + _i; break; }
+    }
+    L('SCAN44: found at offset '+(found44 !== null ? found44 - _base : 'NOT_FOUND_IN_2000')+' abs='+found44);
+    // 先頭80バイトのhex dump
+    const _hex = []; for (let _i=0;_i<80;_i++) _hex.push(r.buf[_base+_i].toString(16).padStart(2,'0'));
+    for (let _row=0;_row<5;_row++) L('DUMP @+'+(_row*16)+': '+_hex.slice(_row*16,_row*16+16).join(' '));
+  }
   r.readStringSafe(); r.readStringSafe(); r.readBool(); L('43 pos='+r.pos);
 
   let inquiryCode = '', playTime = 0;
