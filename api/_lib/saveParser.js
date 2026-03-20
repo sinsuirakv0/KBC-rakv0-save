@@ -80,6 +80,17 @@ export class DataReader {
     const hr = this.readInt(), mn = this.readInt(), sc = this.readInt();
     return new Date(yr, mo - 1, dy, hr, mn, sc);
   }
+  // 異常に長い文字列を安全に読む（transfer_code等）
+  readStringSafe() {
+    const len = this.readInt();
+    if (len < 0 || len > 10000) {
+      // 長さフィールドだけ消費して空文字列を返す
+      console.log('readStringSafe: skipped len='+len+' at pos='+(this.pos-4));
+      return '';
+    }
+    return this.readBytes(len).toString('utf-8');
+  }
+
   assertInt(expected) {
     const v = this.readInt();
     if (v !== expected) {
@@ -653,7 +664,7 @@ export function parseSaveFile(buf) {
   if (!notJP) r.readDouble();
   skipCatsUnlockedForms(r, gv, catCount);         L('42 pos='+r.pos);
 
-  r.readString(); r.readString(); r.readBool();   L('43 pos='+r.pos);
+  r.readStringSafe(); r.readStringSafe(); r.readBool(); L('43 pos='+r.pos);
 
   let inquiryCode = '', playTime = 0;
 
