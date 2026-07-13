@@ -292,6 +292,10 @@ export class NyankoClubRenderer {
 
   formattedValue(key) {
     const value = this.values[key] ?? "";
+    const stampMatch = key.match(/^stamp(\d{2})$/);
+    if (stampMatch && value === "") {
+      return String(Number(stampMatch[1]));
+    }
     if (key === "memberNumber" && Number(value) >= 0) {
       return String(Math.trunc(Number(value))).padStart(8, "0").slice(-8);
     }
