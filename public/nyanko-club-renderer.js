@@ -379,8 +379,27 @@ export class NyankoClubRenderer {
     const verticalScale = Math.min(1, destinationHeight / Math.max(1, top + bottom));
     const sourceColumns = [0, left, left + centerWidth, cut.width];
     const sourceRows = [0, top, top + centerHeight, cut.height];
-    const destinationColumns = [0, left * horizontalScale, destinationWidth - right * horizontalScale, destinationWidth];
-    const destinationRows = [0, top * verticalScale, destinationHeight - bottom * verticalScale, destinationHeight];
+    const outputTransform = context.getTransform();
+    const outputScaleX = Math.max(1, Math.abs(outputTransform.a) || 1);
+    const outputScaleY = Math.max(1, Math.abs(outputTransform.d) || 1);
+    const buffer = document.createElement("canvas");
+    buffer.width = Math.max(1, Math.round(destinationWidth * outputScaleX));
+    buffer.height = Math.max(1, Math.round(destinationHeight * outputScaleY));
+    const bufferContext = buffer.getContext("2d");
+    bufferContext.imageSmoothingEnabled = true;
+    bufferContext.imageSmoothingQuality = "high";
+    const destinationColumns = [
+      0,
+      Math.round(left * horizontalScale * outputScaleX),
+      buffer.width - Math.round(right * horizontalScale * outputScaleX),
+      buffer.width,
+    ];
+    const destinationRows = [
+      0,
+      Math.round(top * verticalScale * outputScaleY),
+      buffer.height - Math.round(bottom * verticalScale * outputScaleY),
+      buffer.height,
+    ];
 
     for (let row = 0; row < 3; row += 1) {
       for (let column = 0; column < 3; column += 1) {
@@ -389,13 +408,14 @@ export class NyankoClubRenderer {
         const targetWidth = destinationColumns[column + 1] - destinationColumns[column];
         const targetHeight = destinationRows[row + 1] - destinationRows[row];
         if (sourceWidth <= 0 || sourceHeight <= 0 || targetWidth <= 0 || targetHeight <= 0) continue;
-        context.drawImage(
+        bufferContext.drawImage(
           image,
           cut.x + sourceColumns[column], cut.y + sourceRows[row], sourceWidth, sourceHeight,
-          transform.x + destinationColumns[column], transform.y + destinationRows[row], targetWidth, targetHeight,
+          destinationColumns[column], destinationRows[row], targetWidth, targetHeight,
         );
       }
     }
+    context.drawImage(buffer, transform.x, transform.y, destinationWidth, destinationHeight);
     return true;
   }
 
