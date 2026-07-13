@@ -71,8 +71,8 @@ LAYOUT_PRESET_ASSETS = {
     "number-imgcut": "img001_ja.imgcut",
     "common-image": "img006_ja.png",
     "common-imgcut": "img006_ja.imgcut",
-    "menu-image": "img007.png",
-    "menu-imgcut": "img007.imgcut",
+    "frame-image": "img008_ja.png",
+    "frame-imgcut": "img008_ja.imgcut",
 }
 
 

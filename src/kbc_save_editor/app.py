@@ -200,17 +200,17 @@ def nyanko_club_assets() -> JSONResponse:
                             },
                         },
                         {
-                            "id": "img007",
+                            "id": "img008",
                             "image": {
-                                "name": "img007.png",
+                                "name": "img008_ja.png",
                                 "url": nyanko_club_public_url(
-                                    "layout/presets/nyanko-club/img007.png"
+                                    "layout/presets/nyanko-club/img008_ja.png"
                                 ),
                             },
                             "imgcut": {
-                                "name": "img007.imgcut",
+                                "name": "img008_ja.imgcut",
                                 "url": nyanko_club_public_url(
-                                    "layout/presets/nyanko-club/img007.imgcut"
+                                    "layout/presets/nyanko-club/img008_ja.imgcut"
                                 ),
                             },
                         },

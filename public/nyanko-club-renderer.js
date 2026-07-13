@@ -74,27 +74,34 @@ async function fetchText(url) {
 }
 
 export async function loadNyankoClubAssets() {
-  const response = await fetch("/api/assets/nyanko-club");
-  if (!response.ok) throw new Error("にゃんこクラブ素材情報を取得できません");
-  const metadata = await response.json();
-  const preset = metadata.layout?.preset;
-  if (!metadata.available || !preset) throw new Error("にゃんこクラブ素材がありません");
-
-  const [image, imgcutText, modelText, textures, extras] = await Promise.all([
-    loadImage(preset.image.url),
-    fetchText(preset.imgcut.url),
-    fetchText(preset.model.url),
-    Promise.all((preset.textures ?? []).map(async (texture) => {
-      const [textureImage, textureImgcut] = await Promise.all([
-        loadImage(texture.image.url),
-        fetchText(texture.imgcut.url),
-      ]);
-      return [texture.id, { image: textureImage, cuts: parseImgcut(textureImgcut) }];
-    })),
-    Promise.all((metadata.layout?.extras ?? []).map(async (extra) => [extra.id, await loadImage(extra.url)])),
+  const presetRoot = "/assets/nyanko-club/layout/presets/nyanko-club";
+  const extraRoot = "/assets/nyanko-club/layout/extras";
+  const [image, imgcutText, modelText, numberImage, numberImgcut, commonImage, commonImgcut, frameImage, frameImgcut] = await Promise.all([
+    loadImage(`${presetRoot}/img061_00_nyankoClub.png`),
+    fetchText(`${presetRoot}/img061_00_nyankoClub.imgcut`),
+    fetchText(`${presetRoot}/img061_00_nyankoClub-native.mamodel`),
+    loadImage(`${presetRoot}/img001_ja.png`),
+    fetchText(`${presetRoot}/img001_ja.imgcut`),
+    loadImage(`${presetRoot}/img006_ja.png`),
+    fetchText(`${presetRoot}/img006_ja.imgcut`),
+    loadImage(`${presetRoot}/img008_ja.png`),
+    fetchText(`${presetRoot}/img008_ja.imgcut`),
   ]);
-
-  const textureMap = new Map(textures);
+  const textureMap = new Map([
+    ["img001", { image: numberImage, cuts: parseImgcut(numberImgcut) }],
+    ["img006", { image: commonImage, cuts: parseImgcut(commonImgcut) }],
+    ["img008", { image: frameImage, cuts: parseImgcut(frameImgcut) }],
+  ]);
+  const standaloneTextures = [
+    "profile-709-0",
+    "abyss-medal-174",
+    "abyss-medal-175",
+    "abyss-medal-176",
+    "abyss-medal-177",
+  ];
+  const extras = await Promise.all(
+    standaloneTextures.map(async (id) => [id, await loadImage(`${extraRoot}/${id}.png`)]),
+  );
   extras.forEach(([id, extraImage]) => textureMap.set(id, { image: extraImage, cuts: null }));
   return {
     image,
@@ -432,12 +439,14 @@ export class NyankoClubRenderer {
     return true;
   }
 
-  drawRepeated(context, source, transform, size, overlapText, image) {
+  drawRepeated(context, node, source, transform, size, overlapText, image) {
     const overlap = Math.max(0, Number(overlapText) || 0);
+    const rotation = Number(nodeDirective(node, "rotate")) || 0;
+    const quarterTurn = Math.abs(rotation) === 90;
     const destinationWidth = size.width * transform.scaleX;
     const destinationHeight = size.height * transform.scaleY;
-    const tileWidth = source.width * transform.scaleX;
-    const tileHeight = source.height * transform.scaleY;
+    const tileWidth = (quarterTurn ? source.height : source.width) * transform.scaleX;
+    const tileHeight = (quarterTurn ? source.width : source.height) * transform.scaleY;
     const stepX = Math.max(1, tileWidth - overlap * transform.scaleX);
     const stepY = Math.max(1, tileHeight - overlap * transform.scaleY);
     context.save();
@@ -446,7 +455,21 @@ export class NyankoClubRenderer {
     context.clip();
     for (let y = transform.y; y < transform.y + destinationHeight; y += stepY) {
       for (let x = transform.x; x < transform.x + destinationWidth; x += stepX) {
-        context.drawImage(image, source.x, source.y, source.width, source.height, x, y, tileWidth, tileHeight);
+        if (rotation === 90) {
+          context.save();
+          context.translate(x + tileWidth, y);
+          context.rotate(Math.PI / 2);
+          context.drawImage(image, source.x, source.y, source.width, source.height, 0, 0, tileHeight, tileWidth);
+          context.restore();
+        } else if (rotation === -90) {
+          context.save();
+          context.translate(x, y + tileHeight);
+          context.rotate(-Math.PI / 2);
+          context.drawImage(image, source.x, source.y, source.width, source.height, 0, 0, tileHeight, tileWidth);
+          context.restore();
+        } else {
+          context.drawImage(image, source.x, source.y, source.width, source.height, x, y, tileWidth, tileHeight);
+        }
       }
     }
     context.restore();
@@ -471,7 +494,7 @@ export class NyankoClubRenderer {
     if (blendMode === "add") context.globalCompositeOperation = "lighter";
     else if (blendMode) context.globalCompositeOperation = blendMode;
     if (repeatOverlap !== null) {
-      this.drawRepeated(context, source, transform, size, repeatOverlap, image);
+      this.drawRepeated(context, node, source, transform, size, repeatOverlap, image);
       context.restore();
       return;
     }
