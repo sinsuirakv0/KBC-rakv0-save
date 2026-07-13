@@ -8,12 +8,12 @@ from typing import Annotated
 
 import uvicorn
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 
 from kbc_save_editor.asset_service import (
+    LAYOUT_EXTRA_LABELS,
     LAYOUT_REFERENCE_IMAGES,
     get_nyanko_club_cuts,
-    get_nyanko_club_layout_extras,
     nyanko_club_abyss_medal_path,
     nyanko_club_assets_available,
     nyanko_club_image_path,
@@ -39,9 +39,26 @@ from kbc_save_editor.save_service import (
 
 app = FastAPI(title="KBC Save Editor API", version="0.1.0")
 
+NYANKO_CLUB_PUBLIC_ASSET_ROOT = "/assets/nyanko-club"
+
 
 def public_path(filename: str) -> Path:
     return project_root() / "public" / filename
+
+
+def nyanko_club_public_url(relative_path: str) -> str:
+    return f"{NYANKO_CLUB_PUBLIC_ASSET_ROOT}/{relative_path}"
+
+
+def nyanko_club_extra_metadata() -> list[dict[str, str]]:
+    return [
+        {
+            "id": asset_id,
+            "label": label,
+            "url": nyanko_club_public_url(f"layout/extras/{asset_id}.png"),
+        }
+        for asset_id, label in LAYOUT_EXTRA_LABELS.items()
+    ]
 
 
 def summary_to_json(summary):
@@ -111,55 +128,71 @@ def health() -> dict[str, str]:
 
 @app.get("/api/assets/nyanko-club")
 def nyanko_club_assets() -> JSONResponse:
-    if not nyanko_club_assets_available():
-        return JSONResponse({"available": False, "cuts": [], "image_url": None})
+    has_local_assets = nyanko_club_assets_available()
+    cuts = [cut.to_dict() for cut in get_nyanko_club_cuts()] if has_local_assets else []
 
     return JSONResponse(
         {
             "available": True,
-            "image_url": "/api/assets/nyanko-club/image",
-            "menu_frame_url": "/api/assets/nyanko-club/ui/menu-frame",
-            "common_buttons_url": "/api/assets/nyanko-club/ui/common-buttons",
-            "item_icons_url": "/api/assets/nyanko-club/ui/item-icons",
-            "cuts": [cut.to_dict() for cut in get_nyanko_club_cuts()],
+            "image_url": nyanko_club_public_url("img061_00_nyankoClub.png"),
+            "menu_frame_url": nyanko_club_public_url("img008_ja.png"),
+            "common_buttons_url": nyanko_club_public_url("img006_ja.png"),
+            "item_icons_url": nyanko_club_public_url("img060_02.png"),
+            "cuts": cuts,
             "layout": {
-                "model_url": "/api/assets/nyanko-club/layout/model",
+                "model_url": nyanko_club_public_url(
+                    "layout/presets/nyanko-club/img061_00_nyankoClub-native.mamodel"
+                ),
                 "preset": {
                     "id": "nyanko-club",
                     "label": "にゃんこクラブ",
                     "image": {
                         "name": "img061_00_nyankoClub.png",
-                        "url": "/api/assets/nyanko-club/layout/preset/image",
+                        "url": nyanko_club_public_url(
+                            "layout/presets/nyanko-club/img061_00_nyankoClub.png"
+                        ),
                     },
                     "imgcut": {
                         "name": "img061_00_nyankoClub.imgcut",
-                        "url": "/api/assets/nyanko-club/layout/preset/imgcut",
+                        "url": nyanko_club_public_url(
+                            "layout/presets/nyanko-club/img061_00_nyankoClub.imgcut"
+                        ),
                     },
                     "model": {
                         "name": "img061_00_nyankoClub-native.mamodel",
-                        "url": "/api/assets/nyanko-club/layout/preset/model",
+                        "url": nyanko_club_public_url(
+                            "layout/presets/nyanko-club/img061_00_nyankoClub-native.mamodel"
+                        ),
                     },
                     "textures": [
                         {
                             "id": "img001",
                             "image": {
                                 "name": "img001_ja.png",
-                                "url": "/api/assets/nyanko-club/layout/preset/number-image",
+                                "url": nyanko_club_public_url(
+                                    "layout/presets/nyanko-club/img001_ja.png"
+                                ),
                             },
                             "imgcut": {
                                 "name": "img001_ja.imgcut",
-                                "url": "/api/assets/nyanko-club/layout/preset/number-imgcut",
+                                "url": nyanko_club_public_url(
+                                    "layout/presets/nyanko-club/img001_ja.imgcut"
+                                ),
                             },
                         },
                         {
                             "id": "img006",
                             "image": {
                                 "name": "img006_ja.png",
-                                "url": "/api/assets/nyanko-club/layout/preset/common-image",
+                                "url": nyanko_club_public_url(
+                                    "layout/presets/nyanko-club/img006_ja.png"
+                                ),
                             },
                             "imgcut": {
                                 "name": "img006_ja.imgcut",
-                                "url": "/api/assets/nyanko-club/layout/preset/common-imgcut",
+                                "url": nyanko_club_public_url(
+                                    "layout/presets/nyanko-club/img006_ja.imgcut"
+                                ),
                             },
                         },
                     ],
@@ -177,7 +210,7 @@ def nyanko_club_assets() -> JSONResponse:
                         **extra,
                         "url": f"/api/assets/nyanko-club/layout/extra/{extra['id']}",
                     }
-                    for extra in get_nyanko_club_layout_extras()
+                    for extra in nyanko_club_extra_metadata()
                 ],
             },
         }
@@ -187,14 +220,14 @@ def nyanko_club_assets() -> JSONResponse:
 @app.get("/api/assets/nyanko-club/image")
 def nyanko_club_image() -> FileResponse:
     if not nyanko_club_assets_available():
-        raise HTTPException(status_code=404, detail="Nyanko Club assets are missing.")
+        return RedirectResponse(nyanko_club_public_url("img061_00_nyankoClub.png"))
     return FileResponse(nyanko_club_image_path())
 
 
 @app.get("/api/assets/nyanko-club/imgcut")
 def nyanko_club_imgcut() -> FileResponse:
     if not nyanko_club_assets_available():
-        raise HTTPException(status_code=404, detail="Nyanko Club assets are missing.")
+        return RedirectResponse(nyanko_club_public_url("img061_00_nyankoClub.imgcut"))
     return FileResponse(nyanko_club_imgcut_path(), media_type="text/plain; charset=utf-8")
 
 
@@ -210,7 +243,11 @@ def nyanko_club_layout_cut(cut_id: int) -> FileResponse:
 def nyanko_club_layout_model() -> FileResponse:
     model_path = nyanko_club_layout_model_path()
     if not model_path.is_file():
-        raise HTTPException(status_code=404, detail="Nyanko Club layout model is missing.")
+        return RedirectResponse(
+            nyanko_club_public_url(
+                "layout/presets/nyanko-club/img061_00_nyankoClub-native.mamodel"
+            )
+        )
     return FileResponse(model_path, media_type="text/plain; charset=utf-8")
 
 
@@ -235,7 +272,9 @@ def nyanko_club_layout_reference(reference_id: str) -> FileResponse:
 def nyanko_club_layout_extra(asset_id: str) -> FileResponse:
     asset_path = nyanko_club_layout_extra_path(asset_id)
     if asset_path is None:
-        raise HTTPException(status_code=404, detail="Nyanko Club layout asset is missing.")
+        if asset_id not in LAYOUT_EXTRA_LABELS:
+            raise HTTPException(status_code=404, detail="Nyanko Club layout asset is missing.")
+        return RedirectResponse(nyanko_club_public_url(f"layout/extras/{asset_id}.png"))
     return FileResponse(asset_path)
 
 
@@ -243,7 +282,7 @@ def nyanko_club_layout_extra(asset_id: str) -> FileResponse:
 def nyanko_club_profile(cat_id: int, cat_form: int) -> FileResponse:
     profile_path = nyanko_club_profile_path(cat_id, cat_form)
     if not profile_path.is_file():
-        raise HTTPException(status_code=404, detail="Nyanko Club profile is missing.")
+        return RedirectResponse(nyanko_club_public_url(f"profiles/{cat_id}_{cat_form}.png"))
     return FileResponse(profile_path)
 
 
@@ -251,7 +290,9 @@ def nyanko_club_profile(cat_id: int, cat_form: int) -> FileResponse:
 def nyanko_club_abyss_medal(item_id: int) -> FileResponse:
     medal_path = nyanko_club_abyss_medal_path(item_id)
     if medal_path is None or not medal_path.is_file():
-        raise HTTPException(status_code=404, detail="Nyanko Club abyss medal is missing.")
+        if item_id not in {174, 175, 176, 177}:
+            raise HTTPException(status_code=404, detail="Nyanko Club abyss medal is missing.")
+        return RedirectResponse(nyanko_club_public_url(f"abyss-medals/{item_id}.png"))
     return FileResponse(medal_path)
 
 
@@ -259,7 +300,15 @@ def nyanko_club_abyss_medal(item_id: int) -> FileResponse:
 def nyanko_club_ui_asset(asset_name: str) -> FileResponse:
     asset_path = nyanko_club_ui_asset_path(asset_name)
     if asset_path is None or not asset_path.is_file():
-        raise HTTPException(status_code=404, detail="Nyanko Club UI asset is missing.")
+        ui_assets = {
+            "menu-frame": "img008_ja.png",
+            "common-buttons": "img006_ja.png",
+            "item-icons": "img060_02.png",
+        }
+        filename = ui_assets.get(asset_name)
+        if filename is None:
+            raise HTTPException(status_code=404, detail="Nyanko Club UI asset is missing.")
+        return RedirectResponse(nyanko_club_public_url(filename))
     return FileResponse(asset_path)
 
 
