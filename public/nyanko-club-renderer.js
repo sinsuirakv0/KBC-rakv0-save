@@ -163,7 +163,9 @@ export class NyankoClubRenderer {
   }
 
   cutFor(node, cutId = node.cutId) {
-    return this.cuts[cutId] ?? null;
+    const texture = this.textureEntry(node);
+    const cuts = texture ? texture.cuts : this.cuts;
+    return cuts?.[cutId] ?? null;
   }
 
   textureEntry(node) {
@@ -265,7 +267,17 @@ export class NyankoClubRenderer {
     if (crop?.length === 4 && crop.every(Number.isFinite)) {
       return { x: crop[0], y: crop[1], width: crop[2], height: crop[3] };
     }
-    if (nodeDirective(node, "texture")) {
+    const inset = nodeDirective(node, "inset")?.split("/").map(Number);
+    if (cut && inset?.length === 4 && inset.every(Number.isFinite)) {
+      const [left, top, right, bottom] = inset;
+      return {
+        x: cut.x + left,
+        y: cut.y + top,
+        width: cut.width - left - right,
+        height: cut.height - top - bottom,
+      };
+    }
+    if (nodeDirective(node, "texture") && !cut) {
       return { x: 0, y: 0, width: image.naturalWidth, height: image.naturalHeight };
     }
     return cut ? { x: cut.x, y: cut.y, width: cut.width, height: cut.height } : null;
@@ -363,7 +375,8 @@ export class NyankoClubRenderer {
   }
 
   drawNineSlice(context, node, cut, transform, size, markerId, image) {
-    const marker = this.cuts[Number(markerId)];
+    const texture = this.textureEntry(node);
+    const marker = (texture?.cuts ?? this.cuts)[Number(markerId)];
     if (!marker) return false;
     const left = marker.x - cut.x;
     const top = marker.y - cut.y;
@@ -419,12 +432,12 @@ export class NyankoClubRenderer {
     return true;
   }
 
-  drawRepeated(context, cut, transform, size, overlapText, image) {
+  drawRepeated(context, source, transform, size, overlapText, image) {
     const overlap = Math.max(0, Number(overlapText) || 0);
     const destinationWidth = size.width * transform.scaleX;
     const destinationHeight = size.height * transform.scaleY;
-    const tileWidth = cut.width * transform.scaleX;
-    const tileHeight = cut.height * transform.scaleY;
+    const tileWidth = source.width * transform.scaleX;
+    const tileHeight = source.height * transform.scaleY;
     const stepX = Math.max(1, tileWidth - overlap * transform.scaleX);
     const stepY = Math.max(1, tileHeight - overlap * transform.scaleY);
     context.save();
@@ -433,7 +446,7 @@ export class NyankoClubRenderer {
     context.clip();
     for (let y = transform.y; y < transform.y + destinationHeight; y += stepY) {
       for (let x = transform.x; x < transform.x + destinationWidth; x += stepX) {
-        context.drawImage(image, cut.x, cut.y, cut.width, cut.height, x, y, tileWidth, tileHeight);
+        context.drawImage(image, source.x, source.y, source.width, source.height, x, y, tileWidth, tileHeight);
       }
     }
     context.restore();
@@ -457,8 +470,8 @@ export class NyankoClubRenderer {
     context.save();
     if (blendMode === "add") context.globalCompositeOperation = "lighter";
     else if (blendMode) context.globalCompositeOperation = blendMode;
-    if (repeatOverlap !== null && cut) {
-      this.drawRepeated(context, cut, transform, size, repeatOverlap, image);
+    if (repeatOverlap !== null) {
+      this.drawRepeated(context, source, transform, size, repeatOverlap, image);
       context.restore();
       return;
     }

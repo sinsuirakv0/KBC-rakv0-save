@@ -9,6 +9,7 @@ from typing import Annotated
 import uvicorn
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
 from kbc_save_editor.asset_service import (
     LAYOUT_EXTRA_LABELS,
@@ -48,6 +49,9 @@ def public_path(filename: str) -> Path:
 
 def nyanko_club_public_url(relative_path: str) -> str:
     return f"{NYANKO_CLUB_PUBLIC_ASSET_ROOT}/{relative_path}"
+
+
+app.mount("/assets", StaticFiles(directory=public_path("assets")), name="assets")
 
 
 def nyanko_club_extra_metadata() -> list[dict[str, str]]:
@@ -192,6 +196,21 @@ def nyanko_club_assets() -> JSONResponse:
                                 "name": "img006_ja.imgcut",
                                 "url": nyanko_club_public_url(
                                     "layout/presets/nyanko-club/img006_ja.imgcut"
+                                ),
+                            },
+                        },
+                        {
+                            "id": "img007",
+                            "image": {
+                                "name": "img007.png",
+                                "url": nyanko_club_public_url(
+                                    "layout/presets/nyanko-club/img007.png"
+                                ),
+                            },
+                            "imgcut": {
+                                "name": "img007.imgcut",
+                                "url": nyanko_club_public_url(
+                                    "layout/presets/nyanko-club/img007.imgcut"
                                 ),
                             },
                         },
