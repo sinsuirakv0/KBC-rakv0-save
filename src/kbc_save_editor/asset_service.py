@@ -27,10 +27,12 @@ class ImageCut:
 
 
 def project_root() -> Path:
-    working_root = Path.cwd()
-    if (working_root / "public" / "assets" / "nyanko-club").is_dir():
-        return working_root
-    return Path(__file__).resolve().parents[2]
+    module_path = Path(__file__).resolve()
+    candidates = [Path.cwd(), *module_path.parents]
+    for candidate in candidates:
+        if (candidate / "public" / "assets" / "nyanko-club").is_dir():
+            return candidate
+    return module_path.parents[2]
 
 
 def nyanko_club_asset_dir() -> Path:
