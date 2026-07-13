@@ -1,0 +1,150 @@
+﻿<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <meta name="description" content="にゃんこクラブの表示内容を組み立てて画像として保存するKBCツール">
+  <title>にゃんこクラブ偽装 | KBC</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="icon" href="./assets/kbc-logo.png">
+  <link rel="stylesheet" href="./nyanko-club-forgery.css">
+  <script type="module" src="./nyanko-club-forgery.js"></script>
+</head>
+<body>
+  <div class="site-shell fade-in">
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="KBC ホーム">
+        <img class="brand-logo" src="./assets/kbc-logo.png" alt="">
+        <span>
+          <strong class="brand-name">KBC</strong>
+          <small class="brand-tool-name">にゃんこクラブ偽装</small>
+        </span>
+      </a>
+
+      <div class="header-actions">
+        <div class="theme-switcher" role="group" aria-label="テーマ">
+          <button class="theme-button" type="button" data-theme-value="original" title="オリジナル" aria-label="オリジナルテーマ">●</button>
+          <button class="theme-button" type="button" data-theme-value="dark" title="ダーク" aria-label="ダークテーマ">◐</button>
+          <button class="theme-button" type="button" data-theme-value="light" title="ライト" aria-label="ライトテーマ">○</button>
+        </div>
+        <a class="header-home-link" href="/">Home</a>
+      </div>
+    </header>
+
+    <main class="page-main">
+      <div class="workspace">
+        <section class="preview-section" aria-labelledby="previewTitle">
+          <div class="section-header preview-header">
+            <div>
+              <span class="category-tag">PREVIEW</span>
+              <h1 id="previewTitle">にゃんこクラブ偽装</h1>
+            </div>
+            <div class="preview-actions">
+              <button id="fullscreenButton" class="tool-button" type="button" data-requires-renderer disabled>
+                <svg class="button-icon fullscreen-enter-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+                <svg class="button-icon fullscreen-exit-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3v3a2 2 0 0 1-2 2H3M16 3v3a2 2 0 0 0 2 2h3M8 21v-3a2 2 0 0 0-2-2H3M16 21v-3a2 2 0 0 1 2-2h3"/></svg>
+                <span id="fullscreenLabel">全画面</span>
+              </button>
+            </div>
+          </div>
+
+          <div id="previewFrame" class="preview-frame">
+            <canvas id="clubCanvas" width="1280" height="576" aria-label="生成したにゃんこクラブ"></canvas>
+            <div id="previewStatus" class="preview-status" role="status">素材を読み込んでいます</div>
+          </div>
+        </section>
+
+        <aside class="control-panel" aria-label="にゃんこクラブ設定">
+          <section class="control-section">
+            <div class="control-heading">
+              <h2>会員状態</h2>
+            </div>
+            <div class="segmented" role="group" aria-label="会員状態">
+              <button id="normalModeButton" class="is-active" type="button" data-mode="normal" aria-pressed="true">通常会員</button>
+              <button id="goldModeButton" type="button" data-mode="gold" aria-pressed="false">ゴールド会員</button>
+            </div>
+          </section>
+
+          <section class="control-section">
+            <div class="control-heading">
+              <h2>会員情報</h2>
+            </div>
+            <div class="input-grid">
+              <label class="field">認定ランク<input type="number" min="1" max="99" step="1" value="12" data-value="certificationRank"></label>
+              <label class="field">会員番号（-1で非表示）<input type="number" min="-1" max="99999999" step="1" value="12245" data-value="memberNumber"></label>
+              <label class="field">ユーザーランク<input type="number" min="0" step="1" value="82918" data-value="userRank"></label>
+              <label class="field">メダル数<input type="number" min="0" step="1" value="126" data-value="medalCount"></label>
+              <label class="field">プレイ時間<input type="number" min="0" max="9999" step="1" value="9999" data-value="playHours"></label>
+              <label class="field">プレイ分<input type="number" min="0" max="59" step="1" value="59" data-value="playMinutes"></label>
+              <label class="field">にゃんこ図鑑<input type="number" min="0" step="1" value="826" data-value="ownedCats"></label>
+              <label class="field">敵キャラ図鑑<input type="number" min="0" step="1" value="612" data-value="enemyCats"></label>
+            </div>
+          </section>
+
+          <section class="control-section">
+            <div class="control-heading">
+              <h2>アビスメダル</h2>
+            </div>
+            <div class="medal-grid">
+              <label class="medal-field"><img src="/api/assets/nyanko-club/abyss-medal/177" alt="プラチナ"><span>プラチナ</span><input type="number" min="0" max="9999" step="1" value="9999" data-value="abyss177"></label>
+              <label class="medal-field"><img src="/api/assets/nyanko-club/abyss-medal/176" alt="ゴールド"><span>ゴールド</span><input type="number" min="0" max="9999" step="1" value="9999" data-value="abyss176"></label>
+              <label class="medal-field"><img src="/api/assets/nyanko-club/abyss-medal/175" alt="シルバー"><span>シルバー</span><input type="number" min="0" max="9999" step="1" value="9999" data-value="abyss175"></label>
+              <label class="medal-field"><img src="/api/assets/nyanko-club/abyss-medal/174" alt="ブロンズ"><span>ブロンズ</span><input type="number" min="0" max="9999" step="1" value="9999" data-value="abyss174"></label>
+            </div>
+          </section>
+
+          <section id="goldSettings" class="control-section" hidden>
+            <div class="control-heading">
+              <h2>ゴールド会員</h2>
+            </div>
+            <div class="input-grid">
+              <label class="field">累積日数<input type="number" min="1" step="1" value="2" data-value="goldDays"></label>
+              <label class="field">期限 月<input type="number" min="1" max="12" step="1" value="8" data-value="expiryMonth"></label>
+              <label class="field">期限 日<input type="number" min="1" max="31" step="1" value="11" data-value="expiryDay"></label>
+              <label class="field">期限 時<input type="number" min="0" max="23" step="1" value="23" data-value="expiryHour"></label>
+              <label class="field">期限 分<input type="number" min="0" max="59" step="1" value="38" data-value="expiryMinute"></label>
+            </div>
+
+            <label class="range-field" for="stampDays">
+              <span>ログインボーナス</span>
+              <output id="stampDaysOutput" for="stampDays">1日目まで</output>
+              <input id="stampDays" type="range" min="1" max="20" step="1" value="1">
+            </label>
+
+            <div class="toggle-grid">
+              <label class="toggle-field"><input type="checkbox" data-value="nextPurchased"><span>次回購入済</span></label>
+              <label class="toggle-field"><input type="checkbox" data-value="showGoldContinue"><span>継続ボタン</span></label>
+            </div>
+          </section>
+
+          <section class="control-section export-section">
+            <div class="control-heading">
+              <h2>画像保存</h2>
+            </div>
+            <div class="export-row">
+              <label class="field export-scale">解像度
+                <select id="exportScale">
+                  <option value="1">1280 × 576</option>
+                  <option value="2" selected>2560 × 1152</option>
+                  <option value="3">3840 × 1728</option>
+                  <option value="4">5120 × 2304</option>
+                </select>
+              </label>
+              <button id="downloadButton" class="tool-button is-primary" type="button" data-requires-renderer disabled>
+                <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                PNG保存
+              </button>
+            </div>
+            <p id="actionStatus" class="action-status" role="status"></p>
+          </section>
+        </aside>
+      </div>
+    </main>
+
+    <footer class="site-footer">KBC</footer>
+  </div>
+</body>
+</html>
