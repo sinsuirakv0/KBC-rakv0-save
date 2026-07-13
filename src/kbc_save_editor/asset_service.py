@@ -27,6 +27,9 @@ class ImageCut:
 
 
 def project_root() -> Path:
+    working_root = Path.cwd()
+    if (working_root / "public" / "assets" / "nyanko-club").is_dir():
+        return working_root
     return Path(__file__).resolve().parents[2]
 
 

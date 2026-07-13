@@ -25,6 +25,7 @@ from kbc_save_editor.asset_service import (
     nyanko_club_layout_reference_path,
     nyanko_club_profile_path,
     nyanko_club_ui_asset_path,
+    project_root,
 )
 from kbc_save_editor.save_service import (
     InvalidChangeError,
@@ -40,7 +41,7 @@ app = FastAPI(title="KBC Save Editor API", version="0.1.0")
 
 
 def public_path(filename: str) -> Path:
-    return Path(__file__).resolve().parents[2] / "public" / filename
+    return project_root() / "public" / filename
 
 
 def summary_to_json(summary):
@@ -61,7 +62,7 @@ def summary_to_json(summary):
 
 @app.get("/")
 def index() -> FileResponse:
-    index_path = Path(__file__).resolve().parents[2] / "index.html"
+    index_path = project_root() / "index.html"
     return FileResponse(index_path)
 
 
