@@ -1,0 +1,1038 @@
+﻿<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KBC Save Editor</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f4f6f5;
+      --panel: #ffffff;
+      --soft: #edf4f1;
+      --line: #d7dfdb;
+      --text: #18221f;
+      --muted: #63706b;
+      --accent: #126b59;
+      --accent-soft: #dceee8;
+      --danger: #b42318;
+      font-family: "Segoe UI", "Noto Sans JP", system-ui, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; scroll-padding-top: 114px; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    button, input, select { font: inherit; }
+
+    .app-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      width: min(1320px, calc(100% - 28px));
+      margin: 0 auto;
+      padding: 14px 0 10px;
+    }
+
+    h1 { margin: 0; font-size: 24px; letter-spacing: 0; }
+    h2 { margin: 0; font-size: 19px; letter-spacing: 0; }
+    h3 { margin: 0 0 10px; font-size: 14px; letter-spacing: 0; }
+
+    .status {
+      min-height: 34px;
+      max-width: 50%;
+      padding: 7px 11px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--panel);
+      color: var(--muted);
+      font-size: 13px;
+      overflow-wrap: anywhere;
+    }
+
+    .status.error { color: var(--danger); border-color: #efb4af; background: #fff7f6; }
+
+    .category-nav-wrap {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      border-block: 1px solid var(--line);
+      background: rgba(244, 246, 245, 0.96);
+      backdrop-filter: blur(8px);
+    }
+
+    .category-nav {
+      display: flex;
+      gap: 5px;
+      width: min(1320px, calc(100% - 28px));
+      margin: 0 auto;
+      padding: 8px 0;
+      overflow-x: auto;
+      scrollbar-width: thin;
+    }
+
+    .category-nav a {
+      flex: 0 0 auto;
+      min-height: 34px;
+      padding: 7px 10px;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 650;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .category-nav a:hover,
+    .category-nav a.active { color: var(--accent); border-color: #bfd8d0; background: var(--accent-soft); }
+
+    main {
+      display: grid;
+      gap: 12px;
+      width: min(1320px, calc(100% - 28px));
+      margin: 0 auto;
+      padding: 14px 0 32px;
+    }
+
+    .category-section {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      overflow-x: auto;
+    }
+
+    .section-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 48px;
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--line);
+      background: #fbfcfc;
+    }
+
+    .section-note { color: var(--muted); font-size: 12px; }
+    .section-body { padding: 12px 14px 14px; }
+
+    .form-grid,
+    .data-grid,
+    .metric-grid,
+    .edit-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      align-items: start;
+    }
+
+    .data-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .metric-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .edit-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+    .tool,
+    .data-block {
+      min-width: 0;
+      padding: 11px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #fff;
+    }
+
+    .data-block { background: #fcfdfd; }
+
+    label {
+      display: block;
+      margin: 9px 0 5px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    input,
+    select {
+      width: 100%;
+      min-height: 36px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--text);
+      padding: 0 9px;
+    }
+
+    input[type="file"] { padding: 7px; }
+
+    button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      min-height: 38px;
+      margin-top: 11px;
+      border: 0;
+      border-radius: 6px;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 750;
+      cursor: pointer;
+    }
+
+    button:disabled { opacity: 0.58; cursor: wait; }
+
+    .radio-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+    .radio-row label { margin: 0; padding: 7px; border: 1px solid var(--line); border-radius: 6px; color: var(--text); }
+    .radio-row input { width: auto; min-height: 0; margin-right: 4px; }
+
+    .source-info,
+    .download,
+    .code-result {
+      margin-top: 9px;
+      padding: 8px 9px;
+      border-radius: 6px;
+      background: var(--soft);
+      color: var(--muted);
+      font-size: 12px;
+      overflow-wrap: anywhere;
+    }
+
+    .download,
+    .code-result { display: none; color: var(--text); }
+    .download a { color: var(--accent); font-weight: 750; text-decoration: none; }
+
+    .metric {
+      min-width: 0;
+      min-height: 74px;
+      padding: 10px 11px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--soft);
+    }
+
+    .metric span { display: block; margin-bottom: 5px; color: var(--muted); font-size: 12px; }
+    .metric strong { font-size: 18px; overflow-wrap: anywhere; }
+
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 13px; }
+    th, td { padding: 6px 7px; border-bottom: 1px solid var(--line); text-align: left; overflow-wrap: anywhere; }
+    th { color: var(--muted); background: #f8faf9; font-size: 11px; }
+    th:last-child, td:last-child { text-align: right; }
+    tbody tr:last-child td { border-bottom: 0; }
+    .event-link { color: var(--accent); font-weight: 700; text-decoration: none; }
+    .event-link:hover { text-decoration: underline; }
+
+    .empty {
+      padding: 28px 12px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .pending { color: var(--muted); font-size: 13px; }
+    .mono { font-family: Consolas, "SFMono-Regular", monospace; font-size: 12px; }
+    .wide { grid-column: 1 / -1; }
+
+    details { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 10px; }
+    summary { color: var(--accent); font-weight: 700; cursor: pointer; }
+    .detail-tools { display: flex; gap: 8px; margin: 10px 0; }
+    .detail-tools input { max-width: 420px; }
+
+    .nyanko-club-view { display: grid; gap: 12px; }
+
+    .nyanko-club-stage {
+      width: 100%;
+      overflow: hidden;
+      border: 1px solid #7d3b1d;
+      border-radius: 6px;
+      background: #793514;
+      box-shadow: 0 2px 8px rgba(62, 32, 16, 0.22);
+    }
+
+    .nyanko-club-scene {
+      display: block;
+      width: 100%;
+      height: auto;
+      aspect-ratio: 1280 / 576;
+    }
+
+    .nyanko-sprite {
+      display: inline-block;
+      flex: 0 0 auto;
+      background-repeat: no-repeat;
+      vertical-align: middle;
+    }
+
+    .nyanko-game-text,
+    .nyanko-day-number {
+      font-family: "Arial Black", "Noto Sans JP", sans-serif;
+      font-weight: 900;
+      letter-spacing: 0;
+      paint-order: stroke fill;
+    }
+
+    .nyanko-game-text {
+      fill: #111;
+      stroke: #fff;
+      stroke-width: 4px;
+      font-size: 23px;
+    }
+
+    .nyanko-day-number {
+      fill: rgba(255, 255, 255, 0.34);
+      font-size: 14px;
+      stroke: none;
+    }
+
+    .nyanko-club-details { margin-top: 0; }
+
+    @media (max-width: 900px) {
+      .form-grid, .data-grid, .metric-grid, .edit-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .app-header { align-items: flex-start; }
+      .status { max-width: 60%; }
+    }
+
+    @media (max-width: 600px) {
+      html { scroll-padding-top: 102px; }
+      .app-header { display: block; }
+      .status { max-width: none; margin-top: 8px; }
+      .form-grid, .data-grid, .metric-grid, .edit-grid { grid-template-columns: 1fr; }
+      .section-heading { align-items: flex-start; flex-direction: column; }
+      .radio-row { grid-template-columns: 1fr; }
+      .nyanko-club-stage { border-radius: 4px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <h1>KBC Save Editor</h1>
+    <div id="status" class="status">待機中</div>
+  </header>
+
+  <div class="category-nav-wrap">
+    <nav class="category-nav" aria-label="セーブデータ分類">
+      <a class="active" href="#save-load">セーブデータ取得</a>
+      <a href="#user-status">ユーザーステータス</a>
+      <a href="#allies">味方キャラ</a>
+      <a href="#enemies">敵キャラ</a>
+      <a href="#talent-orbs">本能玉</a>
+      <a href="#special-talent-orbs">特殊本能玉</a>
+      <a href="#event-items">イベントアイテム</a>
+      <a href="#treasure-chests">宝箱</a>
+      <a href="#gamatoto">ガマトト</a>
+      <a href="#ototo">オトート</a>
+      <a href="#account">アカウント</a>
+      <a href="#gacha">ガチャ</a>
+      <a href="#medals">メダル</a>
+      <a href="#nyanko-club">にゃんこクラブ</a>
+    </nav>
+  </div>
+
+  <main>
+    <section id="save-load" class="category-section">
+      <div class="section-heading"><h2>セーブデータ取得</h2><span class="section-note">読込・取得・引継ぎコード作成</span></div>
+      <div class="section-body form-grid">
+        <form id="fileForm" class="tool">
+          <h3>SAVE_DATAを選ぶ</h3>
+          <label for="saveFile">SAVE_DATA</label>
+          <input id="saveFile" name="file" type="file" required>
+          <label for="fileCountry">国コード</label>
+          <select id="fileCountry" name="country_code">
+            <option value="">自動判定</option><option value="jp">jp</option><option value="en">en</option><option value="kr">kr</option><option value="tw">tw</option>
+          </select>
+          <button type="submit">解析</button>
+        </form>
+
+        <form id="codeForm" class="tool">
+          <h3>引継ぎコードから取得</h3>
+          <label for="transferCode">引継ぎコード</label>
+          <input id="transferCode" name="transfer_code" autocomplete="off" required>
+          <label for="confirmationCode">認証番号</label>
+          <input id="confirmationCode" name="confirmation_code" autocomplete="off" required>
+          <label for="codeCountry">国コード</label>
+          <select id="codeCountry" name="country_code" required>
+            <option value="jp">jp</option><option value="en">en</option><option value="kr">kr</option><option value="tw">tw</option>
+          </select>
+          <button type="submit">取得して解析</button>
+          <div id="downloadBox" class="download"><a id="downloadLink" download="SAVE_DATA">取得したSAVE_DATAを保存</a></div>
+        </form>
+
+        <form id="createCodeForm" class="tool">
+          <h3>引継ぎコードを作成</h3>
+          <div id="createSourceInfo" class="source-info">作成元: SAVE_DATA未読込</div>
+          <label for="createCountry">国コード</label>
+          <select id="createCountry" name="country_code">
+            <option value="">読込中の国コードを使用</option><option value="jp">jp</option><option value="en">en</option><option value="kr">kr</option><option value="tw">tw</option>
+          </select>
+          <label>お問い合わせコード</label>
+          <div class="radio-row">
+            <label><input type="radio" name="inquiry_mode" value="keep" checked>維持</label>
+            <label><input type="radio" name="inquiry_mode" value="new">新規取得</label>
+            <label><input type="radio" name="inquiry_mode" value="custom">変更</label>
+          </div>
+          <label for="customInquiry">変更後のお問い合わせコード</label>
+          <input id="customInquiry" name="inquiry_code" autocomplete="off">
+          <button type="submit">引継ぎコードを作成</button>
+          <div id="createdCodeResult" class="code-result"></div>
+        </form>
+      </div>
+    </section>
+
+    <section id="user-status" class="category-section">
+      <div class="section-heading"><h2>ユーザーステータス</h2><span class="section-note">基本情報と所持アイテム</span></div>
+      <div id="userStatusResult" class="section-body empty">SAVE_DATAを解析すると表示されます</div>
+    </section>
+
+    <section id="allies" class="category-section">
+      <div class="section-heading"><h2>味方キャラ</h2><span class="section-note">詳細分類は後で追加</span></div>
+      <div id="alliesResult" class="section-body empty">未読込</div>
+    </section>
+
+    <section id="enemies" class="category-section">
+      <div class="section-heading"><h2>敵キャラ</h2><span class="section-note">詳細分類は後で追加</span></div>
+      <div id="enemiesResult" class="section-body empty">未読込</div>
+    </section>
+
+    <section id="talent-orbs" class="category-section">
+      <div class="section-heading"><h2>本能玉</h2><span class="section-note">所持種類と総数</span></div>
+      <div id="talentOrbsResult" class="section-body empty">未読込</div>
+    </section>
+
+    <section id="special-talent-orbs" class="category-section">
+      <div class="section-heading"><h2>特殊本能玉</h2><span class="section-note">分類方法を後で追加</span></div>
+      <div id="specialTalentOrbsResult" class="section-body empty">未読込</div>
+    </section>
+
+    <section id="event-items" class="category-section">
+      <div class="section-heading"><h2>イベントアイテム</h2><span class="section-note">イベント・福引チケット</span></div>
+      <div id="eventItemsResult" class="section-body empty">未読込</div>
+    </section>
+
+    <section id="treasure-chests" class="category-section">
+      <div class="section-heading"><h2>宝箱</h2><span class="section-note">種類別所持数</span></div>
+      <div id="treasureChestsResult" class="section-body empty">未読込</div>
+    </section>
+
+    <section id="gamatoto" class="category-section">
+      <div class="section-heading"><h2>ガマトト</h2><span class="section-note">探検状況と隊員</span></div>
+      <div id="gamatotoResult" class="section-body empty">未読込</div>
+    </section>
+
+    <section id="ototo" class="category-section">
+      <div class="section-heading"><h2>オトート</h2><span class="section-note">開発状況</span></div>
+      <div id="ototoResult" class="section-body empty">未読込</div>
+    </section>
+
+    <section id="account" class="category-section">
+      <div class="section-heading"><h2>アカウント</h2><span class="section-note">アカウント識別情報</span></div>
+      <div id="accountResult" class="section-body empty">未読込</div>
+    </section>
+
+    <section id="gacha" class="category-section">
+      <div class="section-heading"><h2>ガチャ</h2><span class="section-note">各ガチャシード</span></div>
+      <div id="gachaResult" class="section-body empty">未読込</div>
+    </section>
+
+    <section id="medals" class="category-section">
+      <div class="section-heading"><h2>メダル</h2><span class="section-note">詳細分類は後で追加</span></div>
+      <div id="medalsResult" class="section-body empty">未読込</div>
+    </section>
+
+    <section id="nyanko-club" class="category-section">
+      <div class="section-heading"><h2>にゃんこクラブ</h2><span class="section-note">会員カード表示用情報</span></div>
+      <div id="nyankoClubResult" class="section-body empty">未読込</div>
+    </section>
+  </main>
+
+  <script>
+    const elements = Object.fromEntries([
+      "status", "fileForm", "codeForm", "createCodeForm", "downloadBox", "downloadLink",
+      "createdCodeResult", "createSourceInfo", "userStatusResult", "alliesResult", "enemiesResult",
+      "talentOrbsResult", "specialTalentOrbsResult", "eventItemsResult", "treasureChestsResult",
+      "gamatotoResult", "ototoResult", "accountResult", "gachaResult", "medalsResult", "nyankoClubResult"
+    ].map((id) => [id, document.getElementById(id)]));
+
+    let currentSummary = null;
+    let currentSaveBytes = null;
+    let nyankoClubAssets = null;
+    let nyankoClubAssetsLoaded = false;
+
+    const editableKeys = ["xp", "catfood", "normal_tickets", "rare_tickets", "platinum_tickets", "legend_tickets", "platinum_shards", "np", "leadership"];
+    const labels = {
+      xp: "XP", catfood: "ネコカン", np: "NP", platinum_shards: "プラチナのかけら",
+      normal_tickets: "にゃんこチケット", rare_tickets: "レアチケット", platinum_tickets: "プラチナチケット",
+      legend_tickets: "レジェンドチケット", leadership: "リーダーシップ"
+    };
+    const nyankoSpriteSize = { width: 1024, height: 512 };
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>"']/g, (char) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"})[char]);
+    }
+
+    function formatNumber(value) {
+      return typeof value === "number" ? value.toLocaleString("ja-JP") : (value ?? "-");
+    }
+
+    function formatDuration(seconds) {
+      const total = Math.max(0, Number(seconds) || 0);
+      const hours = Math.floor(total / 3600);
+      const minutes = Math.floor((total % 3600) / 60);
+      const secs = total % 60;
+      return `${hours}:${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+    }
+
+    function metric(label, value) {
+      return `<div class="metric"><span>${escapeHtml(label)}</span><strong>${escapeHtml(formatNumber(value))}</strong></div>`;
+    }
+
+    function table(title, rows) {
+      const body = rows.length ? rows.map(([name, value]) => `<tr><td>${escapeHtml(name)}</td><td>${escapeHtml(formatNumber(value))}</td></tr>`).join("") : '<tr><td colspan="2">なし</td></tr>';
+      return `<div class="data-block"><h3>${escapeHtml(title)}</h3><table><thead><tr><th>項目</th><th>値</th></tr></thead><tbody>${body}</tbody></table></div>`;
+    }
+
+    function itemTable(title, items) {
+      const rows = (items || []).map((item) => `<tr>
+        <td>${escapeHtml(item.name)} <span class="mono">(id:${escapeHtml(item.item_id)})</span></td>
+        <td>${escapeHtml(formatNumber(item.amount))}</td>
+      </tr>`).join("");
+      return `<div class="data-block"><h3>${escapeHtml(title)}</h3><table><thead><tr><th>項目</th><th>値</th></tr></thead><tbody>${rows || '<tr><td colspan="2">なし</td></tr>'}</tbody></table></div>`;
+    }
+
+    function indexedRows(values, names, fallback) {
+      return (values || []).map((value, index) => [names?.[index] || `${fallback} ${index + 1}`, value]);
+    }
+
+    function eventGatyaTable(items) {
+      const rows = (items || []).map((item) => {
+        const eventGatyaId = Number(item.event_gatya_id);
+        const href = `https://jarjarblink.github.io/JDB/gatya.html?cc=ja&rare=E&no=${eventGatyaId}`;
+        return `<tr>
+          <td><a class="event-link" href="${href}" target="_blank" rel="noreferrer">Event Gatya ID: ${eventGatyaId}</a></td>
+          <td>${escapeHtml(item.name)} <span class="mono">(id:${escapeHtml(item.item_id)})</span></td>
+          <td>${escapeHtml(formatNumber(item.amount))}</td>
+        </tr>`;
+      }).join("");
+      return `<div class="data-block"><table>
+        <thead><tr><th>イベントガチャ</th><th>イベントアイテム</th><th>所持数</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="3">なし</td></tr>'}</tbody>
+      </table></div>`;
+    }
+
+    async function loadNyankoClubAssets() {
+      try {
+        const response = await fetch("/api/assets/nyanko-club");
+        if (!response.ok) return;
+        const data = await response.json();
+        if (!data.available) return;
+        nyankoClubAssets = {
+          imageUrl: data.image_url,
+          menuFrameUrl: data.menu_frame_url,
+          commonButtonsUrl: data.common_buttons_url,
+          itemIconsUrl: data.item_icons_url,
+          cuts: Object.fromEntries((data.cuts || []).map((cut) => [Number(cut.id), cut])),
+        };
+      } catch {
+        nyankoClubAssets = null;
+      } finally {
+        nyankoClubAssetsLoaded = true;
+        if (currentSummary) renderSummary(currentSummary);
+      }
+    }
+
+    function nyankoSprite(cutId, className = "", scale = 1, extraStyle = "") {
+      const cut = nyankoClubAssets?.cuts?.[cutId];
+      if (!nyankoClubAssets || !cut || !cut.width || !cut.height) return "";
+      const width = Math.round(cut.width * scale);
+      const height = Math.round(cut.height * scale);
+      const style = [
+        `width:${width}px`,
+        `height:${height}px`,
+        `background-image:url('${nyankoClubAssets.imageUrl}')`,
+        `background-size:${Math.round(nyankoSpriteSize.width * scale)}px ${Math.round(nyankoSpriteSize.height * scale)}px`,
+        `background-position:-${Math.round(cut.x * scale)}px -${Math.round(cut.y * scale)}px`,
+        extraStyle,
+      ].filter(Boolean).join(";");
+      return `<span class="nyanko-sprite ${escapeHtml(className)}" style="${style}"></span>`;
+    }
+
+    function nyankoDigits(value, variant = "black", scale = 1) {
+      const base = variant === "yellow" ? 80 : 19;
+      const text = String(value ?? 0);
+      const parts = Array.from(text).map((char) => {
+        if (/^\d$/.test(char)) return nyankoSprite(base + Number(char), "", scale);
+        return `<span class="nyanko-digit-separator">${escapeHtml(char)}</span>`;
+      });
+      return `<span class="nyanko-card-number">${parts.join("")}</span>`;
+    }
+
+    function nyankoCount(value, total, variant = "black", scale = 1) {
+      if (total == null) return nyankoDigits(value, variant, scale);
+      return `<span class="nyanko-card-number">${nyankoDigits(value, variant, scale)}<span class="nyanko-digit-separator">/</span>${nyankoDigits(total, variant, scale)}</span>`;
+    }
+
+    function nyankoStat(iconCutId, labelCutId, valueHtml) {
+      return `<div class="nyanko-stat">
+        <div class="nyanko-stat-head">${nyankoSprite(iconCutId, "", 0.9)}${nyankoSprite(labelCutId, "", 0.9)}</div>
+        <div class="nyanko-stat-value">${valueHtml}</div>
+      </div>`;
+    }
+
+    function nyankoSvgSprite(cutId, x, y, scale = 1, attributes = "") {
+      const cut = nyankoClubAssets?.cuts?.[cutId];
+      if (!cut || !cut.width || !cut.height) return "";
+      const width = cut.width * scale;
+      const height = cut.height * scale;
+      return `<svg x="${x}" y="${y}" width="${width}" height="${height}" viewBox="${cut.x} ${cut.y} ${cut.width} ${cut.height}" overflow="hidden">
+        <image href="${nyankoClubAssets.imageUrl}" width="${nyankoSpriteSize.width}" height="${nyankoSpriteSize.height}" ${attributes} />
+      </svg>`;
+    }
+
+    function nyankoAtlasSprite(imageUrl, atlasWidth, atlasHeight, cut, x, y, scale = 1, attributes = "") {
+      if (!imageUrl) return "";
+      const width = cut.width * scale;
+      const height = cut.height * scale;
+      return `<svg x="${x}" y="${y}" width="${width}" height="${height}" viewBox="${cut.x} ${cut.y} ${cut.width} ${cut.height}" overflow="hidden">
+        <image href="${imageUrl}" width="${atlasWidth}" height="${atlasHeight}" ${attributes}/>
+      </svg>`;
+    }
+
+    function nyankoAtlasSlice(imageUrl, atlasWidth, atlasHeight, cut, x, y, width, height, attributes = "") {
+      if (!imageUrl || width <= 0 || height <= 0 || cut.width <= 0 || cut.height <= 0) return "";
+      return `<svg x="${x}" y="${y}" width="${width}" height="${height}" viewBox="${cut.x} ${cut.y} ${cut.width} ${cut.height}" preserveAspectRatio="none" overflow="hidden">
+        <image href="${imageUrl}" width="${atlasWidth}" height="${atlasHeight}" ${attributes}/>
+      </svg>`;
+    }
+
+    function nyankoNineSlice(baseCutId, centerCutId, x, y, width, height) {
+      const base = nyankoClubAssets?.cuts?.[baseCutId];
+      const center = nyankoClubAssets?.cuts?.[centerCutId];
+      if (!base || !center) return "";
+      const left = center.x - base.x;
+      const top = center.y - base.y;
+      const right = base.width - left - center.width;
+      const bottom = base.height - top - center.height;
+      const middleWidth = width - left - right;
+      const middleHeight = height - top - bottom;
+      const imageUrl = nyankoClubAssets.imageUrl;
+      const slices = [
+        [{ x: base.x, y: base.y, width: left, height: top }, x, y, left, top],
+        [{ x: center.x, y: base.y, width: center.width, height: top }, x + left, y, middleWidth, top],
+        [{ x: center.x + center.width, y: base.y, width: right, height: top }, x + width - right, y, right, top],
+        [{ x: base.x, y: center.y, width: left, height: center.height }, x, y + top, left, middleHeight],
+        [center, x + left, y + top, middleWidth, middleHeight],
+        [{ x: center.x + center.width, y: center.y, width: right, height: center.height }, x + width - right, y + top, right, middleHeight],
+        [{ x: base.x, y: center.y + center.height, width: left, height: bottom }, x, y + height - bottom, left, bottom],
+        [{ x: center.x, y: center.y + center.height, width: center.width, height: bottom }, x + left, y + height - bottom, middleWidth, bottom],
+        [{ x: center.x + center.width, y: center.y + center.height, width: right, height: bottom }, x + width - right, y + height - bottom, right, bottom],
+      ];
+      return slices.map(([cut, sliceX, sliceY, sliceWidth, sliceHeight]) =>
+        nyankoAtlasSlice(imageUrl, 1024, 512, cut, sliceX, sliceY, sliceWidth, sliceHeight),
+      ).join("");
+    }
+
+    function nyankoSvgDigits(value, x, y, variant = "yellow", scale = 1, gap = 1) {
+      const base = variant === "small" ? 65 : variant === "rank" ? 80 : 19;
+      let cursor = x;
+      const html = Array.from(String(value ?? 0)).map((char) => {
+        if (!/^\d$/.test(char)) return "";
+        const cut = nyankoClubAssets?.cuts?.[base + Number(char)];
+        if (!cut) return "";
+        const attributes = variant === "yellow" ? 'filter="url(#nyankoValueGold)"' : "";
+        const sprite = nyankoSvgSprite(base + Number(char), cursor, y, scale, attributes);
+        cursor += cut.width * scale + gap;
+        return sprite;
+      }).join("");
+      return { html, width: Math.max(0, cursor - x - gap) };
+    }
+
+    function nyankoSvgNumber(value, x, y, options = {}) {
+      const variant = options.variant || "yellow";
+      const scale = options.scale ?? 1;
+      const suffix = options.suffix || "";
+      const digits = nyankoSvgDigits(value, x, y, variant, scale, options.gap ?? 1);
+      const suffixX = x + digits.width + 5;
+      return `${digits.html}${suffix ? `<text x="${suffixX}" y="${y + 28 * scale}" class="nyanko-game-text nyanko-game-suffix">${escapeHtml(suffix)}</text>` : ""}`;
+    }
+
+    function parseNyankoPlayTime(value) {
+      const numbers = String(value || "0:00").match(/\d+/g) || ["0", "0"];
+      return { hours: numbers[0] || "0", minutes: numbers[1] || "0" };
+    }
+
+    function formatNyankoExpiry(epoch) {
+      if (!epoch) return null;
+      const parts = new Intl.DateTimeFormat("ja-JP", {
+        timeZone: "Asia/Tokyo",
+        month: "numeric",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: false,
+      }).formatToParts(new Date(Number(epoch) * 1000));
+      return Object.fromEntries(parts.map((part) => [part.type, part.value]));
+    }
+
+    function nyankoGoldExpiry(expiryEpoch) {
+      const expiry = formatNyankoExpiry(expiryEpoch);
+      if (!expiry) return "";
+      const month = nyankoSvgDigits(expiry.month, 720, 434, "small", 1.32, 1);
+      const dayX = 720 + month.width + 24;
+      const day = nyankoSvgDigits(expiry.day, dayX, 434, "small", 1.32, 1);
+      const hourX = dayX + day.width + 24;
+      const hour = nyankoSvgDigits(expiry.hour, hourX, 434, "small", 1.32, 1);
+      const minuteX = hourX + hour.width + 24;
+      const minute = nyankoSvgDigits(expiry.minute, minuteX, 434, "small", 1.32, 1);
+      return `${month.html}${nyankoSvgSprite(39, 720 + month.width + 2, 434, 0.62)}
+        ${day.html}${nyankoSvgSprite(38, dayX + day.width + 2, 434, 0.62)}
+        ${hour.html}${nyankoSvgSprite(37, hourX + hour.width + 2, 434, 0.62)}
+        ${minute.html}${nyankoSvgSprite(36, minuteX + minute.width + 2, 434, 0.62)}`;
+    }
+
+    function nyankoLoginBonusDays() {
+      return Array.from({ length: 20 }, (_, index) => {
+        const x = 342 + index * 31.7;
+        if (index === 0) {
+          return nyankoSvgSprite(16, x - 13.3, 452, 0.86);
+        }
+        const day = nyankoSvgDigits(index + 1, 0, 0, "small", 0.5, 0);
+        const digitX = x - day.width / 2;
+        return `${nyankoSvgSprite(17, x - 13.3, 452, 0.86)}${nyankoSvgDigits(index + 1, digitX, 458, "small", 0.5, 0).html}`;
+      }).join("");
+    }
+
+    function nyankoTopInventory(inventory) {
+      const itemIds = [174, 175, 176, 177];
+      const amounts = Object.fromEntries(
+        (inventory.abyss_medals || []).map((item) => [Number(item.item_id), Number(item.amount) || 0]),
+      );
+      return itemIds.map((itemId, index) => {
+        const boxX = 287 + index * 50;
+        const amount = nyankoSvgDigits(amounts[itemId] || 0, boxX + 8, 57, "small", 0.78, 0);
+        return `<image href="/api/assets/nyanko-club/abyss-medal/${itemId}" x="${boxX}" y="24" width="42" height="42"/>${amount.html}`;
+      }).join("");
+    }
+
+    function renderNyankoClubSection(summary, inventory) {
+      const club = summary.categories?.nyanko_club || {};
+      const fallback = `<div class="metric-grid">
+        ${metric("ユーザーランク", summary.user_rank || 0)}${metric("メダル数", club.medal_count || 0)}
+        ${metric("プレイ時間", club.play_time || "0:00")}${metric("にゃんこ図鑑", club.cat_guide || 0)}
+        ${metric("敵キャラ図鑑", club.enemy_guide || 0)}${metric("会員番号", club.member_number >= 0 ? club.member_number : "未登録")}
+      </div><div class="data-grid">${itemTable("アビスメダル", inventory.abyss_medals)}</div>`;
+
+      if (!nyankoClubAssetsLoaded || !nyankoClubAssets) return fallback;
+
+      const memberNumber = club.member_number >= 0 ? club.member_number : 0;
+      const playTime = club.play_time || "0:00";
+      const profileCatId = Number(club.profile_cat_id ?? -1);
+      const profileCatForm = Number(club.profile_cat_form ?? 0);
+      const profileUrl = profileCatId >= 0
+        ? `/api/assets/nyanko-club/profile/${profileCatId}/${profileCatForm}?v=3`
+        : "";
+      const goldPass = club.gold_pass || {};
+      const isGoldMember = Boolean(goldPass.is_gold_member);
+      const showNextPurchase = Boolean(goldPass.next_purchase_purchased);
+      const loginBonusDays = Number(goldPass.login_bonus_days || 0);
+      const play = parseNyankoPlayTime(playTime);
+      const memberDigits = String(memberNumber).padStart(8, "0").slice(-8);
+      const clubRank = Math.max(1, Math.min(12, Math.floor(Number(club.medal_count || 0) / 10)));
+      const rankValue = nyankoSvgDigits(summary.user_rank || 0, 520, 251, "yellow", 0.82);
+      const medalValue = nyankoSvgDigits(club.medal_count || 0, 730, 251, "yellow", 0.82);
+      const playHours = nyankoSvgDigits(play.hours, 570, 305, "yellow", 0.82);
+      const playMinutesX = 570 + playHours.width + 58;
+      const playMinutes = nyankoSvgDigits(play.minutes, playMinutesX, 305, "yellow", 0.82);
+      const catValue = nyankoSvgDigits(club.cat_guide || 0, 530, 362, "yellow", 0.82);
+      const enemyValue = nyankoSvgDigits(club.enemy_guide || 0, 865, 362, "yellow", 0.82);
+      const goldDays = nyankoSvgDigits(loginBonusDays, 878, 279, "small", 1.25, 1);
+      return `<div class="nyanko-club-view">
+        <div class="nyanko-club-stage">
+          <svg class="nyanko-club-scene" viewBox="0 0 1280 576" role="img" aria-label="にゃんこクラブ会員証">
+            <defs>
+              <linearGradient id="nyankoWood" x1="0" x2="1">
+                <stop offset="0" stop-color="#8d461f"/><stop offset="0.5" stop-color="#b06a31"/><stop offset="1" stop-color="#713313"/>
+              </linearGradient>
+              <pattern id="nyankoClubTile" width="88" height="88" patternUnits="userSpaceOnUse">
+                <svg width="88" height="88" viewBox="890 154 88 88" overflow="hidden">
+                  <image href="${nyankoClubAssets.imageUrl}" width="1024" height="512"/>
+                </svg>
+              </pattern>
+              <filter id="nyankoShadow"><feDropShadow dx="0" dy="3" stdDeviation="2" flood-opacity="0.38"/></filter>
+              <filter id="nyankoGoldTexture" color-interpolation-filters="sRGB">
+                <feColorMatrix type="matrix" values="0.25 0.25 0.25 0 0.20  0.20 0.20 0.20 0 0.15  0.05 0.05 0.05 0 0.03  0 0 0 1 0"/>
+              </filter>
+              <filter id="nyankoValueGold" color-interpolation-filters="sRGB">
+                <feColorMatrix type="matrix" values="0.86 0 0 0 0.12  0 0.58 0 0 0.08  0 0 0.08 0 0.01  0 0 0 1 0"/>
+              </filter>
+              <clipPath id="nyankoCardTextureClip"><rect x="292" y="74" width="696" height="428" rx="20"/></clipPath>
+            </defs>
+            <rect width="1280" height="576" fill="#743012"/>
+            <rect x="100" width="1080" height="576" fill="url(#nyankoClubTile)"/>
+            ${nyankoClubAssets.menuFrameUrl ? `<g transform="translate(100 0) rotate(90)"><svg x="0" y="0" width="576" height="100" viewBox="483 12 378 48" preserveAspectRatio="none" overflow="hidden"><image href="${nyankoClubAssets.menuFrameUrl}" width="898" height="304"/></svg></g>
+            <g transform="translate(1280 0) rotate(90)"><svg x="0" y="0" width="576" height="100" viewBox="483 12 378 48" preserveAspectRatio="none" overflow="hidden"><image href="${nyankoClubAssets.menuFrameUrl}" width="898" height="304"/></svg></g>
+            <rect width="100" height="576" fill="#3f190b" opacity="0.14"/><rect x="1180" width="100" height="576" fill="#3f190b" opacity="0.14"/>` : `<rect width="100" height="576" fill="url(#nyankoWood)"/><rect x="1180" width="100" height="576" fill="url(#nyankoWood)"/>`}
+            <rect x="99" width="3" height="576" fill="#3f1c0d" opacity="0.7"/>
+            <rect x="1178" width="3" height="576" fill="#3f1c0d" opacity="0.7"/>
+
+            ${nyankoTopInventory(inventory)}
+
+            ${nyankoNineSlice(isGoldMember ? 51 : 50, isGoldMember ? 60 : 61, 290, 72, 700, 432)}
+            ${isGoldMember ? `<g clip-path="url(#nyankoCardTextureClip)">
+              <svg x="292" y="74" width="696" height="428" viewBox="2 270 388 240" preserveAspectRatio="none" overflow="hidden"><image href="${nyankoClubAssets.imageUrl}" width="1024" height="512" opacity="0.88" filter="url(#nyankoGoldTexture)"/></svg>
+              <svg x="292" y="74" width="696" height="428" viewBox="578 8 195 121" preserveAspectRatio="none" overflow="hidden"><image href="${nyankoClubAssets.imageUrl}" width="1024" height="512" opacity="0.58" style="mix-blend-mode:screen"/></svg>
+            </g>` : ""}
+            ${!isGoldMember ? [0,1,2,3,4,5].map((index) => nyankoSvgSprite(2, 325 + index * 108, 420 + (index % 2) * 10, 0.82, 'opacity="0.48"')).join("") : ""}
+
+            ${nyankoSvgSprite(78, 304, 92, 0.9)}
+            ${nyankoSvgDigits(clubRank, 356, 119, "rank", 0.74, 0).html}
+            ${nyankoSvgSprite(29, 445, 111, 0.88)}
+            ${nyankoSvgSprite(14, 822, 31, 0.9)}
+            ${nyankoNineSlice(52, 62, 835, 515, 155, 48)}
+            ${nyankoSvgSprite(15, 858, 523, 0.88)}
+
+            ${nyankoSvgSprite(30, 806, 87, 0.92)}
+            ${nyankoSvgDigits(memberDigits, 874, 91, "small", 1.05, 0).html}
+            ${nyankoSvgSprite(75, 806, 111, 0.9)}
+            ${nyankoSvgSprite(2, 850, 139, 1.35, 'opacity="0.72"')}
+            ${profileUrl ? `<image href="${profileUrl}" x="805" y="97" width="152" height="152"/>` : ""}
+
+            ${nyankoAtlasSlice(nyankoClubAssets.imageUrl, 1024, 512, nyankoClubAssets.cuts[isGoldMember ? 59 : 57], 330, 291, 453, 3)}
+            ${nyankoAtlasSlice(nyankoClubAssets.imageUrl, 1024, 512, nyankoClubAssets.cuts[isGoldMember ? 59 : 57], 330, 340, 453, 3)}
+            ${nyankoAtlasSlice(nyankoClubAssets.imageUrl, 1024, 512, nyankoClubAssets.cuts[isGoldMember ? 58 : 56], 330, 394, 635, 3)}
+
+            ${nyankoSvgSprite(10, 331, 251, 0.86)}${nyankoSvgSprite(40, 371, 250, 0.92)}${rankValue.html}
+            ${nyankoSvgSprite(76, 627, 249, 0.86)}${nyankoSvgSprite(77, 663, 251, 0.9)}${medalValue.html}
+            ${nyankoSvgSprite(13, 330, 302, 0.92)}${nyankoSvgSprite(47, 371, 302, 0.92)}${nyankoSvgSprite(44, 504, 311, 0.9)}${playHours.html}${nyankoSvgSprite(45, 570 + playHours.width + 5, 305, 0.82)}${playMinutes.html}${nyankoSvgSprite(46, playMinutesX + playMinutes.width + 5, 305, 0.82)}
+            ${nyankoSvgSprite(11, 330, 361, 0.9)}${nyankoSvgSprite(42, 371, 360, 0.9)}${catValue.html}${nyankoSvgSprite(41, 530 + catValue.width + 5, 362, 0.82)}
+            ${nyankoSvgSprite(12, 665, 361, 0.9)}${nyankoSvgSprite(43, 705, 360, 0.9)}${enemyValue.html}${nyankoSvgSprite(41, 865 + enemyValue.width + 5, 362, 0.82)}
+
+            ${isGoldMember ? `${nyankoSvgSprite(32, 817, 238, 1)}
+              ${nyankoSvgSprite(34, 841, 278, 0.74)}${goldDays.html}${nyankoSvgSprite(38, 878 + goldDays.width + 3, 279, 0.72)}
+              ${showNextPurchase ? nyankoSvgSprite(8, 866, 303, 0.72) : ""}
+              ${nyankoNineSlice(54, 64, 312, 415, 655, 68)}
+              ${nyankoSvgSprite(31, 327, 424, 0.92)}
+              ${showNextPurchase ? nyankoSvgSprite(18, 524, 424, 0.86) : ""}
+              ${nyankoSvgSprite(35, 625, 424, 0.86)}
+              ${nyankoGoldExpiry(goldPass.expiry_epoch)}
+              ${nyankoLoginBonusDays()}` : `${nyankoNineSlice(53, 63, 517, 515, 246, 50)}${nyankoSvgSprite(55, 544, 525, 1)}`}
+            ${nyankoAtlasSprite(nyankoClubAssets.commonButtonsUrl, 512, 282, { x: 257, y: 1, width: 95, height: 95 }, 105, 482, 0.9)}
+            ${nyankoAtlasSprite(nyankoClubAssets.commonButtonsUrl, 512, 282, { x: 427, y: 172, width: 84, height: 60 }, 111, 496, 0.88)}
+          </svg>
+        </div>
+        <div class="nyanko-club-details data-grid">${itemTable("アビスメダル", inventory.abyss_medals)}</div>
+      </div>`;
+    }
+
+    function setContent(element, html) {
+      element.className = "section-body";
+      element.innerHTML = html;
+    }
+
+    function renderSummary(summary) {
+      const categories = summary.categories || {};
+      const user = categories.user_status || {};
+      const inventory = categories.inventory_groups || {};
+      const energyMax = user.energy_max == null ? "?" : formatNumber(user.energy_max);
+      const header = `
+        <div class="metric-grid">
+          ${metric("国コード / バージョン", `${summary.country_code || "-"} / ${summary.game_version || "-"}`)}
+          ${metric("ユーザーランク", summary.user_rank || 0)}
+          ${metric("統率力", `${formatNumber(user.energy_current || 0)} / ${energyMax}`)}
+          ${metric("リーダーシップ", summary.values?.leadership || 0)}
+        </div>`;
+      const editFields = editableKeys.map((key) => `<div><label for="edit-${key}">${escapeHtml(labels[key] || key)}</label><input id="edit-${key}" name="${key}" type="number" min="0" step="1" value="${Number(summary.values?.[key] || 0)}"></div>`).join("");
+      const editTool = `
+        <details>
+          <summary>主要数値を書き換える</summary>
+          <form id="editForm">
+            <div class="edit-grid">${editFields}</div>
+            <button type="submit">編集済みSAVE_DATAを作成</button>
+            <div id="editDownloadBox" class="download"><a id="editDownloadLink" download="SAVE_DATA">編集済みSAVE_DATAを保存</a></div>
+          </form>
+        </details>`;
+      setContent(elements.userStatusResult, `${header}<div class="data-grid">
+        ${itemTable("リソース", inventory.resources)}
+        ${itemTable("チケット", inventory.tickets)}
+        ${itemTable("バトルアイテム", inventory.battle_items)}
+        ${itemTable("ネコビタン", inventory.catamins)}
+        ${itemTable("城素材", inventory.base_materials)}
+        ${itemTable("マタタビ", inventory.matatabi)}
+        ${itemTable("獣石", inventory.beast_stones)}
+        ${itemTable("キャッツアイ", inventory.catseyes)}
+        ${itemTable("アビスメダル", inventory.abyss_medals)}
+      </div>${editTool}`);
+
+      const allies = categories.allies || {};
+      setContent(elements.alliesResult, `<div class="metric-grid">${metric("所持キャラ", `${allies.unlocked || 0} / ${allies.total || 0}`)}</div>`);
+      const enemies = categories.enemies || {};
+      setContent(elements.enemiesResult, `<div class="metric-grid">${metric("発見した敵キャラ", `${enemies.unlocked || 0} / ${enemies.total || 0}`)}</div>`);
+      const orbs = categories.talent_orbs || {};
+      setContent(elements.talentOrbsResult, `<div class="metric-grid">${metric("所持種類", orbs.types || 0)}${metric("所持総数", orbs.total || 0)}</div>`);
+      setContent(elements.specialTalentOrbsResult, '<p class="pending">特殊本能玉の判定と分類は次の段階で追加します。</p>');
+
+      const eventItems = categories.event_items || {};
+      setContent(elements.eventItemsResult, eventGatyaTable(eventItems.items));
+      setContent(elements.treasureChestsResult, `<div class="data-grid">${itemTable("宝箱", inventory.treasure_chests)}</div>`);
+
+      const gamatoto = categories.gamatoto || {};
+      setContent(elements.gamatotoResult, `<div class="metric-grid">
+        ${metric("状態", gamatoto.status === "exploring" ? "探検中" : "待機中")}
+        ${metric("残り時間", formatDuration(gamatoto.remaining_seconds))}
+        ${metric("ゾーンの残り回数", gamatoto.zone_remaining || 0)}
+        ${metric("ガマトトXP", gamatoto.xp || 0)}
+        ${metric("ガマトトレベル", gamatoto.level ?? "未取得")}
+        ${metric("隊員", `${gamatoto.helper_count || 0}人`)}
+      </div>${table("隊員ID", indexedRows(gamatoto.helpers, null, "隊員"))}`);
+
+      const ototo = categories.ototo || {};
+      setContent(elements.ototoResult, `<div class="metric-grid">
+        ${metric("状態", ototo.status === "developing" ? "開発中" : "待機中")}
+        ${metric("残り時間", formatDuration(ototo.remaining_seconds))}
+        ${metric("助手数", ototo.engineers || 0)}
+      </div>`);
+
+      const account = categories.account || {};
+      const rawRows = (summary.detail_values || []).map((row) => `<tr><td>${escapeHtml(row.label || row.key)}</td><td class="mono">${escapeHtml(row.key)}</td><td>${escapeHtml(formatNumber(row.value))}</td></tr>`).join("");
+      setContent(elements.accountResult, `<div class="metric-grid">
+        ${metric("プレイ時間", account.play_time || "0:00")}
+        ${metric("お問い合わせコード", summary.inquiry_code || "-")}
+        ${metric("会員番号", account.member_number >= 0 ? account.member_number : "未登録")}
+        ${metric("BAN状態", account.is_banned ? "BAN表示あり" : "正常")}
+      </div><details><summary>未分類の解析データを見る</summary><div class="detail-tools"><input id="detailFilter" type="search" placeholder="表示名・キー・値で検索"></div><div class="data-block wide"><table id="rawDetailTable"><thead><tr><th>表示名</th><th>キー</th><th>値</th></tr></thead><tbody>${rawRows}</tbody></table></div></details>`);
+
+      const seeds = summary.gacha_seeds || {};
+      setContent(elements.gachaResult, `<div class="metric-grid">${metric("にゃんこガチャシード", seeds.normal || 0)}${metric("レアガチャシード", seeds.rare || 0)}${metric("イベントガチャシード", seeds.event || 0)}</div>`);
+      const medals = categories.medals || {};
+      setContent(elements.medalsResult, `<div class="metric-grid">${metric("獲得メダル", medals.owned || 0)}</div><p class="pending">メダルごとの名前と達成状況は後で追加します。</p>`);
+      setContent(elements.nyankoClubResult, renderNyankoClubSection(summary, inventory));
+
+      document.getElementById("editForm").addEventListener("submit", handleEdit);
+      document.getElementById("detailFilter").addEventListener("input", filterRawDetails);
+    }
+
+    function filterRawDetails(event) {
+      const query = event.target.value.trim().toLowerCase();
+      document.querySelectorAll("#rawDetailTable tbody tr").forEach((row) => {
+        row.hidden = query && !row.textContent.toLowerCase().includes(query);
+      });
+    }
+
+    function setStatus(message, isError = false) {
+      elements.status.textContent = message;
+      elements.status.classList.toggle("error", isError);
+    }
+
+    function setBusy(form, busy) {
+      form.querySelectorAll("button").forEach((button) => { button.disabled = busy; });
+    }
+
+    function base64ToBytes(fileBase64) {
+      const binary = atob(fileBase64);
+      return Uint8Array.from(binary, (char) => char.charCodeAt(0));
+    }
+
+    function bytesToFile(bytes) {
+      return new File([bytes], "SAVE_DATA", { type: "application/octet-stream" });
+    }
+
+    function attachDownload(anchor, box, bytes) {
+      anchor.href = URL.createObjectURL(new Blob([bytes], { type: "application/octet-stream" }));
+      box.style.display = "block";
+    }
+
+    function acceptSummary(summary, bytes) {
+      currentSummary = summary;
+      currentSaveBytes = bytes;
+      renderSummary(summary);
+      elements.createSourceInfo.textContent = `作成元: 読込中のSAVE_DATA / ${summary.country_code || "-"} / ${summary.inquiry_code || "お問い合わせコードなし"}`;
+    }
+
+    async function postForm(url, formData) {
+      const response = await fetch(url, { method: "POST", body: formData });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.detail || `HTTP ${response.status}`);
+      return data;
+    }
+
+    elements.fileForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      setBusy(elements.fileForm, true);
+      setStatus("解析中");
+      try {
+        const formData = new FormData(elements.fileForm);
+        if (!formData.get("country_code")) formData.delete("country_code");
+        const file = formData.get("file");
+        const data = await postForm("/api/save/inspect", formData);
+        acceptSummary(data, new Uint8Array(await file.arrayBuffer()));
+        setStatus("解析完了");
+        location.hash = "#user-status";
+      } catch (error) { setStatus(error.message, true); }
+      finally { setBusy(elements.fileForm, false); }
+    });
+
+    elements.codeForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      setBusy(elements.codeForm, true);
+      setStatus("取得中");
+      try {
+        const data = await postForm("/api/save/download", new FormData(elements.codeForm));
+        const bytes = base64ToBytes(data.file_base64);
+        acceptSummary(data.summary, bytes);
+        attachDownload(elements.downloadLink, elements.downloadBox, bytes);
+        setStatus("取得と解析が完了");
+        location.hash = "#user-status";
+      } catch (error) { setStatus(error.message, true); }
+      finally { setBusy(elements.codeForm, false); }
+    });
+
+    elements.createCodeForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if (!currentSaveBytes || !currentSummary) return setStatus("先にSAVE_DATAを解析してください", true);
+      setBusy(elements.createCodeForm, true);
+      setStatus("引継ぎコード作成中");
+      try {
+        const formData = new FormData(elements.createCodeForm);
+        formData.set("file", bytesToFile(currentSaveBytes));
+        if (!formData.get("country_code")) formData.set("country_code", currentSummary.country_code);
+        const data = await postForm("/api/save/create-transfer", formData);
+        const bytes = base64ToBytes(data.file_base64);
+        acceptSummary(data.summary, bytes);
+        elements.createdCodeResult.style.display = "block";
+        elements.createdCodeResult.innerHTML = `<strong>引継ぎコード:</strong> ${escapeHtml(data.transfer_code)}<br><strong>認証番号:</strong> ${escapeHtml(data.confirmation_code)}`;
+        setStatus("引継ぎコードを作成しました");
+      } catch (error) { setStatus(error.message, true); }
+      finally { setBusy(elements.createCodeForm, false); }
+    });
+
+    async function handleEdit(event) {
+      event.preventDefault();
+      if (!currentSaveBytes || !currentSummary) return setStatus("先にSAVE_DATAを解析してください", true);
+      const form = event.currentTarget;
+      setBusy(form, true);
+      setStatus("編集済みSAVE_DATAを作成中");
+      try {
+        const changes = Object.fromEntries(editableKeys.map((key) => [key, Number(document.getElementById(`edit-${key}`).value || 0)]));
+        const formData = new FormData();
+        formData.append("file", bytesToFile(currentSaveBytes));
+        formData.append("country_code", currentSummary.country_code);
+        formData.append("changes_json", JSON.stringify(changes));
+        const data = await postForm("/api/save/patch", formData);
+        const bytes = base64ToBytes(data.file_base64);
+        acceptSummary(data.summary, bytes);
+        attachDownload(document.getElementById("editDownloadLink"), document.getElementById("editDownloadBox"), bytes);
+        setStatus("編集済みSAVE_DATAを作成しました");
+      } catch (error) { setStatus(error.message, true); }
+      finally { setBusy(form, false); }
+    }
+
+    const observer = new IntersectionObserver((entries) => {
+      const visible = entries.filter((entry) => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+      if (!visible) return;
+      document.querySelectorAll(".category-nav a").forEach((link) => link.classList.toggle("active", link.getAttribute("href") === `#${visible.target.id}`));
+    }, { rootMargin: "-110px 0px -65% 0px", threshold: [0, 0.2, 0.5] });
+    document.querySelectorAll(".category-section").forEach((section) => observer.observe(section));
+    loadNyankoClubAssets();
+  </script>
+</body>
+</html>
