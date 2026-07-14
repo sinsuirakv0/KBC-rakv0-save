@@ -1,6 +1,17 @@
 ﻿const LOGICAL_WIDTH = 1280;
 const LOGICAL_HEIGHT = 576;
 const MEDAL_IDS = [177, 176, 175, 174];
+const CUSTOM_LAYER_REGIONS = {
+  brown: { x: 100, y: 0, width: 1080, height: 576, radius: 0 },
+  card: { x: 289, y: 70.2, width: 702, height: 435.6, radius: 22 },
+  character: { x: 807.4, y: 112.5, width: 148.5, height: 114.75, radius: 0 },
+};
+const CARD_BACKGROUND_NAMES = new Set([
+  "通常カード",
+  "ゴールドカード",
+  "ゴールド乗算レイヤー",
+  "ゴールド加算レイヤー",
+]);
 
 function parseImgcut(text) {
   const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
@@ -124,6 +135,8 @@ export class NyankoClubRenderer {
     this.mode = "normal";
     this.stampDays = 0;
     this.values = {};
+    this.nativeCardOpacity = 1;
+    this.customLayers = new Map();
     this.canvas.width = LOGICAL_WIDTH;
     this.canvas.height = LOGICAL_HEIGHT;
   }
@@ -138,6 +151,55 @@ export class NyankoClubRenderer {
 
   setValues(values) {
     this.values = { ...this.values, ...values };
+  }
+
+  setNativeCardOpacity(opacity) {
+    this.nativeCardOpacity = Math.max(0, Math.min(1, Number(opacity) || 0));
+  }
+
+  setCustomLayerImage(layerId, image) {
+    if (!CUSTOM_LAYER_REGIONS[layerId] || !image) return;
+    this.customLayers.set(layerId, {
+      image,
+      offsetX: 0,
+      offsetY: 0,
+      scale: 1,
+      opacity: 1,
+    });
+  }
+
+  setCustomLayerTransform(layerId, changes) {
+    const layer = this.customLayers.get(layerId);
+    if (!layer) return;
+    if (Number.isFinite(changes.offsetX)) layer.offsetX = changes.offsetX;
+    if (Number.isFinite(changes.offsetY)) layer.offsetY = changes.offsetY;
+    if (Number.isFinite(changes.scale)) layer.scale = Math.max(0.1, Math.min(5, changes.scale));
+    if (Number.isFinite(changes.opacity)) layer.opacity = Math.max(0, Math.min(1, changes.opacity));
+  }
+
+  resetCustomLayerTransform(layerId) {
+    const layer = this.customLayers.get(layerId);
+    if (!layer) return;
+    Object.assign(layer, { offsetX: 0, offsetY: 0, scale: 1 });
+  }
+
+  removeCustomLayer(layerId) {
+    this.customLayers.delete(layerId);
+  }
+
+  customLayerState(layerId) {
+    return this.customLayers.get(layerId) ?? null;
+  }
+
+  customLayerRegion(layerId) {
+    return CUSTOM_LAYER_REGIONS[layerId] ?? null;
+  }
+
+  pointInsideCustomLayer(layerId, x, y) {
+    const region = this.customLayerRegion(layerId);
+    return Boolean(region)
+      && x >= region.x && x <= region.x + region.width
+      && y >= region.y && y <= region.y + region.height;
   }
 
   render() {
@@ -161,8 +223,66 @@ export class NyankoClubRenderer {
     context.imageSmoothingEnabled = true;
     context.imageSmoothingQuality = "high";
     const transforms = new Map();
-    this.nodes.forEach((node) => this.drawNode(context, node, transforms));
+    let brownLayerDrawn = false;
+    let cardLayerDrawn = false;
+    this.nodes.forEach((node) => {
+      if (!brownLayerDrawn && node.nodeId === 2) {
+        this.drawCustomLayer(context, "brown");
+        brownLayerDrawn = true;
+      }
+      if (!cardLayerDrawn && node.nodeId === 6) {
+        this.drawCustomLayer(context, "card");
+        cardLayerDrawn = true;
+      }
+      if (node.nodeId === 106 && this.customLayers.has("character")) {
+        this.drawCustomLayer(context, "character");
+        return;
+      }
+      this.drawNode(context, node, transforms);
+    });
     context.setTransform(1, 0, 0, 1, 0, 0);
+  }
+
+  clipCustomLayer(context, region) {
+    context.beginPath();
+    if (region.radius > 0 && typeof context.roundRect === "function") {
+      context.roundRect(region.x, region.y, region.width, region.height, region.radius);
+    } else if (region.radius > 0) {
+      const right = region.x + region.width;
+      const bottom = region.y + region.height;
+      context.moveTo(region.x + region.radius, region.y);
+      context.lineTo(right - region.radius, region.y);
+      context.quadraticCurveTo(right, region.y, right, region.y + region.radius);
+      context.lineTo(right, bottom - region.radius);
+      context.quadraticCurveTo(right, bottom, right - region.radius, bottom);
+      context.lineTo(region.x + region.radius, bottom);
+      context.quadraticCurveTo(region.x, bottom, region.x, bottom - region.radius);
+      context.lineTo(region.x, region.y + region.radius);
+      context.quadraticCurveTo(region.x, region.y, region.x + region.radius, region.y);
+      context.closePath();
+    } else {
+      context.rect(region.x, region.y, region.width, region.height);
+    }
+    context.clip();
+  }
+
+  drawCustomLayer(context, layerId) {
+    const layer = this.customLayers.get(layerId);
+    const region = this.customLayerRegion(layerId);
+    if (!layer?.image || !region || layer.opacity <= 0) return;
+    const imageWidth = layer.image.naturalWidth || layer.image.width;
+    const imageHeight = layer.image.naturalHeight || layer.image.height;
+    if (!imageWidth || !imageHeight) return;
+    const coverScale = Math.max(region.width / imageWidth, region.height / imageHeight);
+    const width = imageWidth * coverScale * layer.scale;
+    const height = imageHeight * coverScale * layer.scale;
+    const centerX = region.x + region.width / 2 + layer.offsetX;
+    const centerY = region.y + region.height / 2 + layer.offsetY;
+    context.save();
+    this.clipCustomLayer(context, region);
+    context.globalAlpha = layer.opacity;
+    context.drawImage(layer.image, centerX - width / 2, centerY - height / 2, width, height);
+    context.restore();
   }
 
   rootNode() {
@@ -213,6 +333,7 @@ export class NyankoClubRenderer {
 
   positionedTransform(node, cache) {
     const transform = { ...this.nodeTransform(node, cache) };
+    if (node.nodeId === 6 && Number(this.values.certificationRank) <= 0) transform.x = 193;
     const medalId = this.medalId(node);
     if (medalId !== null) {
       const slot = this.activeMedals().indexOf(medalId);
@@ -248,6 +369,7 @@ export class NyankoClubRenderer {
     if (mode && mode !== this.mode) return false;
     const condition = nodeDirective(node, "when");
     if (condition && !Boolean(this.values[condition])) return false;
+    if (node.name.startsWith("認定ランク") && Number(this.values.certificationRank) <= 0) return false;
     if (node.name.startsWith("会員番号") && Number(this.values.memberNumber) === -1) return false;
     const medalId = this.medalId(node);
     if (medalId !== null && Number(this.values[`abyss${medalId}`]) <= 0) return false;
@@ -495,6 +617,9 @@ export class NyankoClubRenderer {
     const nineSliceMarker = nodeDirective(node, "9slice");
     const blendMode = nodeDirective(node, "blend");
     context.save();
+    if (CARD_BACKGROUND_NAMES.has(node.name.split(" [", 1)[0])) {
+      context.globalAlpha *= this.nativeCardOpacity;
+    }
     if (blendMode === "add") context.globalCompositeOperation = "lighter";
     else if (blendMode) context.globalCompositeOperation = blendMode;
     if (repeatOverlap !== null) {

@@ -55,6 +55,8 @@
 
 * { box-sizing: border-box; }
 
+[hidden] { display: none !important; }
+
 html {
   min-height: 100%;
   background: var(--color-bg);
@@ -235,6 +237,13 @@ a { -webkit-tap-highlight-color: transparent; }
   touch-action: manipulation;
 }
 
+#clubCanvas.is-image-editing {
+  touch-action: none;
+  cursor: grab;
+}
+
+#clubCanvas.is-image-dragging { cursor: grabbing; }
+
 .preview-status {
   position: absolute;
   inset: 0;
@@ -302,6 +311,38 @@ a { -webkit-tap-highlight-color: transparent; }
 
 .segmented button:last-child { border-right: 0; }
 .segmented button.is-active { background: var(--color-primary); color: #fff; }
+
+.image-layer-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+.image-layer-tabs button {
+  padding-right: 4px;
+  padding-left: 4px;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.image-action-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.image-action-row .tool-button {
+  width: 100%;
+  min-width: 0;
+  padding-right: 7px;
+  padding-left: 7px;
+  font-size: 0.72rem;
+}
+
+.image-status {
+  color: var(--color-primary);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.compact-range { margin-top: 10px; }
 
 .input-grid,
 .medal-grid,
@@ -390,6 +431,12 @@ a { -webkit-tap-highlight-color: transparent; }
   cursor: pointer;
 }
 
+.preview-frame:fullscreen #clubCanvas.is-image-editing,
+.preview-frame.is-pseudo-fullscreen #clubCanvas.is-image-editing { cursor: grab; }
+
+.preview-frame:fullscreen #clubCanvas.is-image-dragging,
+.preview-frame.is-pseudo-fullscreen #clubCanvas.is-image-dragging { cursor: grabbing; }
+
 .preview-frame.is-pseudo-fullscreen {
   position: fixed;
   inset: 0;
@@ -415,6 +462,7 @@ body.is-fullscreen .fullscreen-exit-icon { display: block; }
   .control-panel { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .control-section { border-right: 1px solid var(--color-border); }
   .control-section:nth-child(even) { border-right: 0; }
+  .image-section,
   .export-section { grid-column: 1 / -1; }
 }
 
@@ -435,6 +483,7 @@ body.is-fullscreen .fullscreen-exit-icon { display: block; }
   .control-panel { grid-template-columns: 1fr; }
   .control-section,
   .control-section:nth-child(even) { padding: 13px 12px; border-right: 0; }
+  .image-section,
   .export-section { grid-column: auto; }
   .medal-field { grid-template-columns: 32px minmax(0, 1fr) 84px; }
   .medal-field img { width: 32px; height: 32px; }

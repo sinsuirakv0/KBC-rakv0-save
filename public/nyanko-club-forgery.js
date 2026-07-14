@@ -4,8 +4,17 @@ const THEME_STORAGE_KEY = "kbc-theme";
 const THEMES = new Set(["original", "dark", "light"]);
 const elements = Object.fromEntries([...document.querySelectorAll("[id]")].map((element) => [element.id, element]));
 const valueInputs = [...document.querySelectorAll("[data-value]")];
+const LAYER_LABELS = {
+  character: "キャラアイコン",
+  card: "カード背景",
+  brown: "茶色背景",
+};
 let renderer = null;
 let mode = "normal";
+let activeLayerId = "character";
+let pointerGesture = null;
+let pointerMoved = false;
+const activePointers = new Map();
 
 function readStoredTheme() {
   try {
@@ -49,6 +58,7 @@ function renderClub() {
   renderer.setMode(mode);
   renderer.setStampDays(elements.stampDays.value);
   renderer.setValues(collectValues());
+  renderer.setNativeCardOpacity(Number(elements.nativeCardOpacity.value) / 100);
   renderer.render();
 }
 
@@ -68,10 +78,117 @@ function updateStampOutput() {
   renderClub();
 }
 
+function customLayerState() {
+  return renderer?.customLayerState(activeLayerId) ?? null;
+}
+
+function updateCustomImageControls() {
+  document.querySelectorAll("[data-layer]").forEach((button) => {
+    const active = button.dataset.layer === activeLayerId;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+  const state = customLayerState();
+  const hasImage = Boolean(state);
+  elements.customImageStatus.textContent = `${LAYER_LABELS[activeLayerId]}: ${hasImage ? "設定済み" : "未選択"}`;
+  elements.customImageScale.value = String(Math.round((state?.scale ?? 1) * 100));
+  elements.customImageOpacity.value = String(Math.round((state?.opacity ?? 1) * 100));
+  elements.customImageScaleOutput.value = `${elements.customImageScale.value}%`;
+  elements.customImageOpacityOutput.value = `${elements.customImageOpacity.value}%`;
+  elements.resetImageButton.disabled = !hasImage;
+  elements.removeImageButton.disabled = !hasImage;
+  elements.customImageScale.disabled = !hasImage;
+  elements.customImageOpacity.disabled = !hasImage;
+  elements.nativeCardOpacityField.hidden = activeLayerId !== "card";
+  elements.clubCanvas.classList.toggle("is-image-editing", hasImage);
+}
+
+function selectCustomLayer(layerId) {
+  if (!LAYER_LABELS[layerId]) return;
+  activeLayerId = layerId;
+  activePointers.clear();
+  pointerGesture = null;
+  updateCustomImageControls();
+}
+
+function loadSelectedImage(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("画像を読み込めませんでした"));
+    };
+    image.src = url;
+  });
+}
+
+async function handleCustomImageSelection() {
+  const [file] = elements.customImageInput.files;
+  const targetLayerId = activeLayerId;
+  elements.customImageInput.value = "";
+  if (!renderer || !file) return;
+  try {
+    const image = await loadSelectedImage(file);
+    renderer.setCustomLayerImage(targetLayerId, image);
+    renderer.render();
+    updateCustomImageControls();
+  } catch (error) {
+    elements.actionStatus.textContent = error.message;
+  }
+}
+
+function updateCustomLayerTransform(changes) {
+  if (!renderer || !customLayerState()) return;
+  renderer.setCustomLayerTransform(activeLayerId, changes);
+  renderer.render();
+  updateCustomImageControls();
+}
+
+function midpoint(first, second) {
+  return { x: (first.x + second.x) / 2, y: (first.y + second.y) / 2 };
+}
+
+function pointDistance(first, second) {
+  return Math.hypot(second.x - first.x, second.y - first.y);
+}
+
+function startPointerGesture() {
+  const state = customLayerState();
+  const pointers = [...activePointers.values()];
+  if (!state || pointers.length === 0) {
+    pointerGesture = null;
+    return;
+  }
+  if (pointers.length === 1) {
+    pointerGesture = {
+      type: "drag",
+      startPoint: pointers[0],
+      offsetX: state.offsetX,
+      offsetY: state.offsetY,
+    };
+    return;
+  }
+  const center = midpoint(pointers[0], pointers[1]);
+  pointerGesture = {
+    type: "pinch",
+    startCenter: center,
+    startDistance: Math.max(1, pointDistance(pointers[0], pointers[1])),
+    offsetX: state.offsetX,
+    offsetY: state.offsetY,
+    scale: state.scale,
+  };
+}
+
 function setRendererControlsEnabled(enabled) {
   document.querySelectorAll("[data-requires-renderer]").forEach((control) => {
     control.disabled = !enabled;
   });
+  updateCustomImageControls();
 }
 
 function downloadCanvas(canvas, filename) {
@@ -144,13 +261,82 @@ function canvasPoint(event) {
   };
 }
 
-function handleCanvasPointer(event) {
-  const fullscreenActive = document.fullscreenElement === elements.previewFrame
+function isBackButtonPoint(point) {
+  return point.x >= 96 && point.x <= 205
+    && point.y >= 470 && point.y <= NyankoClubRenderer.height;
+}
+
+function fullscreenActive() {
+  return document.fullscreenElement === elements.previewFrame
     || elements.previewFrame.classList.contains("is-pseudo-fullscreen");
-  if (!fullscreenActive) return;
+}
+
+function handleCanvasPointerDown(event) {
   const point = canvasPoint(event);
-  const insideBackButton = point.x >= 96 && point.x <= 205 && point.y >= 470 && point.y <= NyankoClubRenderer.height;
-  if (!insideBackButton) return;
+  if (fullscreenActive() && isBackButtonPoint(point)) return;
+  if (!renderer || !customLayerState()) return;
+  if (activePointers.size === 0 && !renderer.pointInsideCustomLayer(activeLayerId, point.x, point.y)) return;
+  event.preventDefault();
+  if (activePointers.size === 0) pointerMoved = false;
+  activePointers.set(event.pointerId, point);
+  elements.clubCanvas.setPointerCapture(event.pointerId);
+  elements.clubCanvas.classList.add("is-image-dragging");
+  startPointerGesture();
+}
+
+function handleCanvasPointerMove(event) {
+  if (!activePointers.has(event.pointerId) || !pointerGesture) return;
+  event.preventDefault();
+  const point = canvasPoint(event);
+  const previous = activePointers.get(event.pointerId);
+  if (Math.hypot(point.x - previous.x, point.y - previous.y) > 0.5) pointerMoved = true;
+  activePointers.set(event.pointerId, point);
+  const pointers = [...activePointers.values()];
+  if (pointerGesture.type === "drag" && pointers.length === 1) {
+    updateCustomLayerTransform({
+      offsetX: pointerGesture.offsetX + point.x - pointerGesture.startPoint.x,
+      offsetY: pointerGesture.offsetY + point.y - pointerGesture.startPoint.y,
+    });
+    return;
+  }
+  if (pointerGesture.type === "pinch" && pointers.length >= 2) {
+    const center = midpoint(pointers[0], pointers[1]);
+    updateCustomLayerTransform({
+      offsetX: pointerGesture.offsetX + center.x - pointerGesture.startCenter.x,
+      offsetY: pointerGesture.offsetY + center.y - pointerGesture.startCenter.y,
+      scale: pointerGesture.scale * pointDistance(pointers[0], pointers[1]) / pointerGesture.startDistance,
+    });
+  }
+}
+
+function endCanvasPointer(event, allowBackButton) {
+  const interacted = activePointers.has(event.pointerId);
+  activePointers.delete(event.pointerId);
+  if (elements.clubCanvas.hasPointerCapture(event.pointerId)) {
+    elements.clubCanvas.releasePointerCapture(event.pointerId);
+  }
+  if (activePointers.size > 0) startPointerGesture();
+  else {
+    pointerGesture = null;
+    elements.clubCanvas.classList.remove("is-image-dragging");
+  }
+  if (allowBackButton && (!interacted || !pointerMoved)) handleCanvasPointer(event);
+  if (activePointers.size === 0) pointerMoved = false;
+}
+
+function handleCanvasWheel(event) {
+  if (!renderer || !customLayerState()) return;
+  const point = canvasPoint(event);
+  if (!renderer.pointInsideCustomLayer(activeLayerId, point.x, point.y)) return;
+  event.preventDefault();
+  const state = customLayerState();
+  updateCustomLayerTransform({ scale: state.scale * Math.exp(-event.deltaY * 0.0015) });
+}
+
+function handleCanvasPointer(event) {
+  if (!fullscreenActive()) return;
+  const point = canvasPoint(event);
+  if (!isBackButtonPoint(point)) return;
   if (document.fullscreenElement === elements.previewFrame) document.exitFullscreen();
   else {
     elements.previewFrame.classList.remove("is-pseudo-fullscreen");
@@ -167,10 +353,40 @@ async function initialize() {
   elements.normalModeButton.addEventListener("click", () => setMode("normal"));
   elements.goldModeButton.addEventListener("click", () => setMode("gold"));
   elements.stampDays.addEventListener("input", updateStampOutput);
+  document.querySelectorAll("[data-layer]").forEach((button) => {
+    button.addEventListener("click", () => selectCustomLayer(button.dataset.layer));
+  });
+  elements.selectImageButton.addEventListener("click", () => elements.customImageInput.click());
+  elements.customImageInput.addEventListener("change", handleCustomImageSelection);
+  elements.resetImageButton.addEventListener("click", () => {
+    renderer?.resetCustomLayerTransform(activeLayerId);
+    renderer?.render();
+    updateCustomImageControls();
+  });
+  elements.removeImageButton.addEventListener("click", () => {
+    renderer?.removeCustomLayer(activeLayerId);
+    renderer?.render();
+    updateCustomImageControls();
+  });
+  elements.customImageScale.addEventListener("input", () => {
+    updateCustomLayerTransform({ scale: Number(elements.customImageScale.value) / 100 });
+  });
+  elements.customImageOpacity.addEventListener("input", () => {
+    updateCustomLayerTransform({ opacity: Number(elements.customImageOpacity.value) / 100 });
+  });
+  elements.nativeCardOpacity.addEventListener("input", () => {
+    elements.nativeCardOpacityOutput.value = `${elements.nativeCardOpacity.value}%`;
+    renderClub();
+  });
   elements.downloadButton.addEventListener("click", saveImage);
   elements.fullscreenButton.addEventListener("click", toggleFullscreen);
-  elements.clubCanvas.addEventListener("pointerup", handleCanvasPointer);
+  elements.clubCanvas.addEventListener("pointerdown", handleCanvasPointerDown);
+  elements.clubCanvas.addEventListener("pointermove", handleCanvasPointerMove);
+  elements.clubCanvas.addEventListener("pointerup", (event) => endCanvasPointer(event, true));
+  elements.clubCanvas.addEventListener("pointercancel", (event) => endCanvasPointer(event, false));
+  elements.clubCanvas.addEventListener("wheel", handleCanvasWheel, { passive: false });
   document.addEventListener("fullscreenchange", updateFullscreenState);
+  updateCustomImageControls();
   updateStampOutput();
 
   try {
@@ -178,6 +394,7 @@ async function initialize() {
     renderer = new NyankoClubRenderer(elements.clubCanvas, assets);
     setRendererControlsEnabled(true);
     setMode("normal");
+    updateCustomImageControls();
     elements.previewStatus.textContent = "";
   } catch (error) {
     elements.previewStatus.textContent = error.message;

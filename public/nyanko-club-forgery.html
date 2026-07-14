@@ -73,7 +73,7 @@
               <h2>会員情報</h2>
             </div>
             <div class="input-grid">
-              <label class="field">認定ランク<input type="number" min="1" max="99" step="1" value="12" data-value="certificationRank"></label>
+              <label class="field">認定ランク（0で非表示）<input type="number" min="0" max="99" step="1" value="12" data-value="certificationRank"></label>
               <label class="field">会員番号（-1で非表示）<input type="number" min="-1" max="99999999" step="1" value="12245" data-value="memberNumber"></label>
               <label class="field">ユーザーランク<input type="number" min="0" step="1" value="82918" data-value="userRank"></label>
               <label class="field">メダル数<input type="number" min="0" step="1" value="126" data-value="medalCount"></label>
@@ -89,10 +89,10 @@
               <h2>アビスメダル</h2>
             </div>
             <div class="medal-grid">
-              <label class="medal-field"><img src="/api/assets/nyanko-club/abyss-medal/177" alt="プラチナ"><span>プラチナ</span><input type="number" min="0" max="9999" step="1" value="9999" data-value="abyss177"></label>
-              <label class="medal-field"><img src="/api/assets/nyanko-club/abyss-medal/176" alt="ゴールド"><span>ゴールド</span><input type="number" min="0" max="9999" step="1" value="9999" data-value="abyss176"></label>
-              <label class="medal-field"><img src="/api/assets/nyanko-club/abyss-medal/175" alt="シルバー"><span>シルバー</span><input type="number" min="0" max="9999" step="1" value="9999" data-value="abyss175"></label>
-              <label class="medal-field"><img src="/api/assets/nyanko-club/abyss-medal/174" alt="ブロンズ"><span>ブロンズ</span><input type="number" min="0" max="9999" step="1" value="9999" data-value="abyss174"></label>
+              <label class="medal-field"><img src="./assets/nyanko-club/layout/extras/abyss-medal-177.png" alt="プラチナ"><span>プラチナ</span><input type="number" min="0" max="9999" step="1" value="9999" data-value="abyss177"></label>
+              <label class="medal-field"><img src="./assets/nyanko-club/layout/extras/abyss-medal-176.png" alt="ゴールド"><span>ゴールド</span><input type="number" min="0" max="9999" step="1" value="9999" data-value="abyss176"></label>
+              <label class="medal-field"><img src="./assets/nyanko-club/layout/extras/abyss-medal-175.png" alt="シルバー"><span>シルバー</span><input type="number" min="0" max="9999" step="1" value="9999" data-value="abyss175"></label>
+              <label class="medal-field"><img src="./assets/nyanko-club/layout/extras/abyss-medal-174.png" alt="ブロンズ"><span>ブロンズ</span><input type="number" min="0" max="9999" step="1" value="9999" data-value="abyss174"></label>
             </div>
           </section>
 
@@ -118,6 +118,39 @@
               <label class="toggle-field"><input type="checkbox" data-value="nextPurchased"><span>次回購入済</span></label>
               <label class="toggle-field"><input type="checkbox" data-value="showGoldContinue"><span>継続ボタン</span></label>
             </div>
+          </section>
+
+          <section class="control-section image-section">
+            <div class="control-heading">
+              <h2>画像差し替え</h2>
+              <output id="customImageStatus" class="image-status">未選択</output>
+            </div>
+            <div class="segmented image-layer-tabs" role="group" aria-label="編集する画像">
+              <button id="characterLayerButton" class="is-active" type="button" data-layer="character" aria-pressed="true">キャラアイコン</button>
+              <button id="cardLayerButton" type="button" data-layer="card" aria-pressed="false">カード背景</button>
+              <button id="brownLayerButton" type="button" data-layer="brown" aria-pressed="false">茶色背景</button>
+            </div>
+            <input id="customImageInput" type="file" accept="image/*" hidden>
+            <div class="image-action-row">
+              <button id="selectImageButton" class="tool-button" type="button" data-requires-renderer disabled>画像を選択</button>
+              <button id="resetImageButton" class="tool-button" type="button" data-requires-renderer disabled>位置を戻す</button>
+              <button id="removeImageButton" class="tool-button" type="button" data-requires-renderer disabled>画像を削除</button>
+            </div>
+            <label class="range-field compact-range" for="customImageScale">
+              <span>拡大率</span>
+              <output id="customImageScaleOutput" for="customImageScale">100%</output>
+              <input id="customImageScale" type="range" min="10" max="500" step="1" value="100" data-requires-renderer disabled>
+            </label>
+            <label class="range-field compact-range" for="customImageOpacity">
+              <span>画像の不透明度</span>
+              <output id="customImageOpacityOutput" for="customImageOpacity">100%</output>
+              <input id="customImageOpacity" type="range" min="0" max="100" step="1" value="100" data-requires-renderer disabled>
+            </label>
+            <label id="nativeCardOpacityField" class="range-field compact-range" for="nativeCardOpacity" hidden>
+              <span>元のカード</span>
+              <output id="nativeCardOpacityOutput" for="nativeCardOpacity">100%</output>
+              <input id="nativeCardOpacity" type="range" min="0" max="100" step="1" value="100" data-requires-renderer disabled>
+            </label>
           </section>
 
           <section class="control-section export-section">
