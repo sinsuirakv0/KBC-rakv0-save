@@ -127,6 +127,6 @@
 0,0,57,115,253,116,0,0,1000,1000,0,255,0,アビスメダル175 数値 [texture:img001] [value:abyss175] [digits-base:57] [align:right] [valign:bottom] [spacing:-3]
 0,0,57,116,307,116,0,0,1000,1000,0,255,0,アビスメダル174 数値 [texture:img001] [value:abyss174] [digits-base:57] [align:right] [valign:bottom] [spacing:-3]
 0,0,9,117,105,-89,95,95,900,900,0,255,0,戻るボタン 丸ウィンドウ [texture:img006] [crop:257/1/95/95] [space:canvas] [anchor:bottom]
-0,0,3,118,112.4,-73.5,84,60,900,900,0,255,0,戻るボタン 矢印 [texture:img006] [crop:427/172/84/60] [space:canvas] [anchor:bottom]
+0,0,3,118,107.4,-73.5,84,60,900,900,0,255,0,戻るボタン 矢印 [texture:img006] [crop:427/172/84/60] [space:canvas] [anchor:bottom]
 1000,0,255
 0
