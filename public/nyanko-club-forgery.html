@@ -101,12 +101,14 @@
               <h2>ゴールド会員</h2>
             </div>
             <div class="input-grid">
-              <label class="field">累積日数<input type="number" min="1" step="1" value="2" data-value="goldDays"></label>
+              <label class="field">累積回数<input type="number" min="0" step="1" value="2" data-value="goldDays"></label>
               <label class="field">期限 月<input type="number" min="1" max="12" step="1" value="8" data-value="expiryMonth"></label>
               <label class="field">期限 日<input type="number" min="1" max="31" step="1" value="11" data-value="expiryDay"></label>
-              <label class="field">期限 時<input type="number" min="0" max="23" step="1" value="23" data-value="expiryHour"></label>
-              <label class="field">期限 分<input type="number" min="0" max="59" step="1" value="38" data-value="expiryMinute"></label>
+              <label class="field">期限 時<input id="expiryHour" type="number" min="0" max="23" step="1" value="0" data-value="expiryHour" disabled></label>
+              <label class="field">期限 分<input id="expiryMinute" type="number" min="0" max="59" step="1" value="0" data-value="expiryMinute" disabled></label>
             </div>
+
+            <label class="toggle-field standalone-toggle"><input id="expiryTimeUnlocked" type="checkbox"><span>有効期限の時刻固定を解除</span></label>
 
             <label class="range-field" for="stampDays">
               <span>ログインボーナス</span>
@@ -157,7 +159,16 @@
             <div class="control-heading">
               <h2>画像保存</h2>
             </div>
-            <div class="export-row">
+            <div class="input-grid export-options">
+              <label class="field">画面比率
+                <select id="aspectRatio" data-requires-renderer disabled>
+                  <option value="1.7777777778">16:9</option>
+                  <option value="2">18:9</option>
+                  <option value="2.1666666667">19.5:9</option>
+                  <option value="2.2222222222" selected>20:9（Pixel 8）</option>
+                  <option value="2.3333333333">21:9</option>
+                </select>
+              </label>
               <label class="field export-scale">解像度
                 <select id="exportScale">
                   <option value="1">1280 × 576</option>
@@ -166,6 +177,8 @@
                   <option value="4">5120 × 2304</option>
                 </select>
               </label>
+            </div>
+            <div class="export-row">
               <button id="downloadButton" class="tool-button is-primary" type="button" data-requires-renderer disabled>
                 <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
                 PNG保存

@@ -2,11 +2,11 @@
 3
 125
 -1,-1,0,0,0,0,0,0,1000,1000,0,255,0,root v15.5.0 [viewport:pixel8]
-0,0,1,1,100,0,1200,640,900,900,0,255,0,背景タイル [repeat:1] [space:canvas]
-0,0,11,119,0,0,61.25,360,1600,1600,0,255,0,画面端 木目 左 [texture:img008] [rotate:-90] [repeat:1] [space:canvas]
-0,0,12,120,98,0,15,360,133,1600,0,255,0,画面端 薄い帯 左 [texture:img008] [rotate:-90] [repeat:1] [space:canvas]
-0,0,12,121,1180,0,15,360,133,1600,0,255,0,画面端 薄い帯 右 [texture:img008] [rotate:90] [repeat:1] [space:canvas]
-0,0,11,122,1182,0,61.25,360,1600,1600,0,255,0,画面端 木目 右 [texture:img008] [rotate:90] [repeat:1] [space:canvas]
+0,0,1,1,100,0,1200,640,900,900,0,255,0,背景タイル [repeat:1] [space:canvas] [fill:100/0/100/0]
+0,0,11,119,0,0,48,360,1600,1600,0,255,0,画面端 木目 左 [texture:img008] [rotate:-90] [repeat:1] [space:canvas]
+0,0,12,120,76.8,0,15,360,1600,1600,0,255,0,画面端 薄い帯 左 [texture:img008] [rotate:-90] [repeat:1] [space:canvas]
+0,0,12,121,-100,0,15,360,1600,1600,0,255,0,画面端 薄い帯 右 [texture:img008] [rotate:90] [repeat:1] [space:canvas] [anchor:right]
+0,0,11,122,-76.8,0,48,360,1600,1600,0,255,0,画面端 木目 右 [texture:img008] [rotate:90] [repeat:1] [space:canvas] [anchor:right]
 0,0,50,2,90,118,780,484,1000,1000,0,255,0,通常カード [9slice:61] [mode:normal]
 0,0,51,3,90,118,780,484,1000,1000,0,255,0,ゴールドカード [9slice:60] [mode:gold]
 0,0,48,4,90,118,780,484,1000,1000,0,255,0,ゴールド乗算レイヤー [blend:multiply] [mode:gold]
@@ -124,7 +124,7 @@
 0,0,57,114,199,116,0,0,1000,1000,0,255,0,アビスメダル176 数値 [texture:img001] [value:abyss176] [digits-base:57] [align:right] [valign:bottom] [spacing:-3]
 0,0,57,115,253,116,0,0,1000,1000,0,255,0,アビスメダル175 数値 [texture:img001] [value:abyss175] [digits-base:57] [align:right] [valign:bottom] [spacing:-3]
 0,0,57,116,307,116,0,0,1000,1000,0,255,0,アビスメダル174 数値 [texture:img001] [value:abyss174] [digits-base:57] [align:right] [valign:bottom] [spacing:-3]
-0,0,9,117,103,481,95,95,1000,1000,0,255,0,戻るボタン 丸ウィンドウ [texture:img006] [crop:257/1/95/95] [space:canvas]
-0,0,3,118,109,498,84,60,1000,1000,0,255,0,戻るボタン 矢印 [texture:img006] [crop:427/172/84/60] [space:canvas]
+0,0,9,117,105,-89,95,95,900,900,0,255,0,戻るボタン 丸ウィンドウ [texture:img006] [crop:257/1/95/95] [space:canvas] [anchor:bottom]
+0,0,3,118,110.4,-73.5,84,60,900,900,0,255,0,戻るボタン 矢印 [texture:img006] [crop:427/172/84/60] [space:canvas] [anchor:bottom]
 1000,0,255
 0

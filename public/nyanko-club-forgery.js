@@ -50,7 +50,12 @@ function inputValue(input) {
 }
 
 function collectValues() {
-  return Object.fromEntries(valueInputs.map((input) => [input.dataset.value, inputValue(input)]));
+  const values = Object.fromEntries(valueInputs.map((input) => [input.dataset.value, inputValue(input)]));
+  if (!elements.expiryTimeUnlocked.checked) {
+    values.expiryHour = 0;
+    values.expiryMinute = 0;
+  }
+  return values;
 }
 
 function renderClub() {
@@ -75,6 +80,35 @@ function setMode(nextMode) {
 
 function updateStampOutput() {
   elements.stampDaysOutput.value = `${elements.stampDays.value}日目まで`;
+  renderClub();
+}
+
+function updateExpiryTimeLock() {
+  const unlocked = elements.expiryTimeUnlocked.checked;
+  elements.expiryHour.disabled = !unlocked;
+  elements.expiryMinute.disabled = !unlocked;
+  if (!unlocked) {
+    elements.expiryHour.value = "0";
+    elements.expiryMinute.value = "0";
+  }
+  renderClub();
+}
+
+function updateExportOptions() {
+  if (!renderer) return;
+  [...elements.exportScale.options].forEach((option) => {
+    const scale = Number(option.value);
+    option.textContent = `${renderer.width * scale} × ${renderer.height * scale}`;
+  });
+}
+
+function updateAspectRatio() {
+  if (!renderer) return;
+  renderer.setAspectRatio(elements.aspectRatio.value);
+  const ratio = renderer.width / renderer.height;
+  elements.previewFrame.style.setProperty("--club-aspect-ratio", `${renderer.width} / ${renderer.height}`);
+  elements.previewFrame.style.setProperty("--club-fullscreen-width", `${ratio * 100}vh`);
+  updateExportOptions();
   renderClub();
 }
 
@@ -219,7 +253,7 @@ async function saveImage() {
     await downloadCanvas(exportCanvas, `nyanko-club-${mode}-${exportCanvas.width}x${exportCanvas.height}.png`);
     exportCanvas.width = 1;
     exportCanvas.height = 1;
-    elements.actionStatus.textContent = `${NyankoClubRenderer.width * scale} × ${NyankoClubRenderer.height * scale}で保存しました`;
+    elements.actionStatus.textContent = `${renderer.width * scale} × ${renderer.height * scale}で保存しました`;
   } catch (error) {
     elements.actionStatus.textContent = error.message;
   } finally {
@@ -256,14 +290,16 @@ function updateFullscreenState() {
 function canvasPoint(event) {
   const rect = elements.clubCanvas.getBoundingClientRect();
   return {
-    x: (event.clientX - rect.left) * NyankoClubRenderer.width / rect.width,
-    y: (event.clientY - rect.top) * NyankoClubRenderer.height / rect.height,
+    x: (event.clientX - rect.left) * (renderer?.width ?? NyankoClubRenderer.width) / rect.width,
+    y: (event.clientY - rect.top) * (renderer?.height ?? NyankoClubRenderer.height) / rect.height,
   };
 }
 
 function isBackButtonPoint(point) {
-  return point.x >= 96 && point.x <= 205
-    && point.y >= 470 && point.y <= NyankoClubRenderer.height;
+  const region = renderer?.backButtonRegion();
+  return Boolean(region)
+    && point.x >= region.x && point.x <= region.x + region.width
+    && point.y >= region.y && point.y <= region.y + region.height;
 }
 
 function fullscreenActive() {
@@ -353,6 +389,8 @@ async function initialize() {
   elements.normalModeButton.addEventListener("click", () => setMode("normal"));
   elements.goldModeButton.addEventListener("click", () => setMode("gold"));
   elements.stampDays.addEventListener("input", updateStampOutput);
+  elements.expiryTimeUnlocked.addEventListener("change", updateExpiryTimeLock);
+  elements.aspectRatio.addEventListener("change", updateAspectRatio);
   document.querySelectorAll("[data-layer]").forEach((button) => {
     button.addEventListener("click", () => selectCustomLayer(button.dataset.layer));
   });
@@ -387,12 +425,14 @@ async function initialize() {
   elements.clubCanvas.addEventListener("wheel", handleCanvasWheel, { passive: false });
   document.addEventListener("fullscreenchange", updateFullscreenState);
   updateCustomImageControls();
+  updateExpiryTimeLock();
   updateStampOutput();
 
   try {
     const assets = await loadNyankoClubAssets();
     renderer = new NyankoClubRenderer(elements.clubCanvas, assets);
     setRendererControlsEnabled(true);
+    updateAspectRatio();
     setMode("normal");
     updateCustomImageControls();
     elements.previewStatus.textContent = "";

@@ -225,7 +225,7 @@ a { -webkit-tap-highlight-color: transparent; }
 .preview-frame {
   position: relative;
   width: 100%;
-  aspect-ratio: 20 / 9;
+  aspect-ratio: var(--club-aspect-ratio, 20 / 9);
   overflow: hidden;
   background: #000;
 }
@@ -404,9 +404,11 @@ a { -webkit-tap-highlight-color: transparent; }
 .toggle-grid { margin-top: 12px; }
 .toggle-field { display: flex; align-items: center; gap: 8px; min-height: 38px; color: var(--color-text); font-size: 0.75rem; font-weight: 700; }
 .toggle-field input { width: 18px; height: 18px; margin: 0; accent-color: var(--color-primary); }
+.standalone-toggle { margin-top: 10px; }
 
 .export-section { background: var(--color-surface-muted); }
-.export-row { align-items: end; }
+.export-options { margin-bottom: 10px; }
+.export-row { align-items: end; justify-content: flex-end; }
 .export-scale { flex: 1; }
 .export-row .tool-button { flex: 0 0 auto; min-width: 124px; }
 .action-status { min-height: 20px; margin: 8px 0 0; color: var(--color-text-muted); font-size: 0.7rem; }
@@ -425,9 +427,9 @@ a { -webkit-tap-highlight-color: transparent; }
 
 .preview-frame:fullscreen #clubCanvas,
 .preview-frame.is-pseudo-fullscreen #clubCanvas {
-  width: min(100vw, calc(100vh * 20 / 9));
+  width: min(100vw, var(--club-fullscreen-width, 222.2222vh));
   height: auto;
-  aspect-ratio: 20 / 9;
+  aspect-ratio: var(--club-aspect-ratio, 20 / 9);
   cursor: pointer;
 }
 

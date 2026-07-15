@@ -1,11 +1,8 @@
 ﻿const LOGICAL_WIDTH = 1280;
 const LOGICAL_HEIGHT = 576;
+const NATIVE_LAYOUT_WIDTH = 960;
 const MEDAL_IDS = [177, 176, 175, 174];
-const CUSTOM_LAYER_REGIONS = {
-  brown: { x: 100, y: 0, width: 1080, height: 576, radius: 0 },
-  card: { x: 289, y: 70.2, width: 702, height: 435.6, radius: 22 },
-  character: { x: 807.4, y: 112.5, width: 148.5, height: 114.75, radius: 0 },
-};
+const CUSTOM_LAYER_IDS = new Set(["brown", "card", "character"]);
 const CARD_BACKGROUND_NAMES = new Set([
   "通常カード",
   "ゴールドカード",
@@ -137,8 +134,17 @@ export class NyankoClubRenderer {
     this.values = {};
     this.nativeCardOpacity = 1;
     this.customLayers = new Map();
-    this.canvas.width = LOGICAL_WIDTH;
-    this.canvas.height = LOGICAL_HEIGHT;
+    this.width = LOGICAL_WIDTH;
+    this.height = LOGICAL_HEIGHT;
+    this.canvas.width = this.width;
+    this.canvas.height = this.height;
+  }
+
+  setAspectRatio(ratio) {
+    const safeRatio = Math.max(16 / 9, Math.min(21 / 9, Number(ratio) || 20 / 9));
+    this.width = Math.round(this.height * safeRatio);
+    this.canvas.width = this.width;
+    this.canvas.height = this.height;
   }
 
   setMode(mode) {
@@ -158,7 +164,7 @@ export class NyankoClubRenderer {
   }
 
   setCustomLayerImage(layerId, image) {
-    if (!CUSTOM_LAYER_REGIONS[layerId] || !image) return;
+    if (!CUSTOM_LAYER_IDS.has(layerId) || !image) return;
     this.customLayers.set(layerId, {
       image,
       offsetX: 0,
@@ -192,7 +198,14 @@ export class NyankoClubRenderer {
   }
 
   customLayerRegion(layerId) {
-    return CUSTOM_LAYER_REGIONS[layerId] ?? null;
+    const scale = this.height / 640;
+    const xOffset = (this.width - NATIVE_LAYOUT_WIDTH * scale) / 2;
+    const regions = {
+      brown: { x: 100, y: 0, width: this.width - 200, height: this.height, radius: 0 },
+      card: { x: xOffset + 90 * scale, y: -40 * scale + 118 * scale, width: 780 * scale, height: 484 * scale, radius: 22 },
+      character: { x: xOffset + 666 * scale, y: 125 * scale, width: 165 * scale, height: 127.5 * scale, radius: 0 },
+    };
+    return regions[layerId] ?? null;
   }
 
   pointInsideCustomLayer(layerId, x, y) {
@@ -202,6 +215,10 @@ export class NyankoClubRenderer {
       && y >= region.y && y <= region.y + region.height;
   }
 
+  backButtonRegion() {
+    return { x: 97, y: this.height - 97, width: 102, height: 97 };
+  }
+
   render() {
     this.renderTo(this.canvas.getContext("2d"), 1);
   }
@@ -209,17 +226,17 @@ export class NyankoClubRenderer {
   createExportCanvas(scale = 2) {
     const safeScale = Math.max(1, Math.min(4, Number(scale) || 2));
     const exportCanvas = document.createElement("canvas");
-    exportCanvas.width = LOGICAL_WIDTH * safeScale;
-    exportCanvas.height = LOGICAL_HEIGHT * safeScale;
+    exportCanvas.width = this.width * safeScale;
+    exportCanvas.height = this.height * safeScale;
     this.renderTo(exportCanvas.getContext("2d"), safeScale);
     return exportCanvas;
   }
 
   renderTo(context, outputScale) {
     context.setTransform(outputScale, 0, 0, outputScale, 0, 0);
-    context.clearRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
+    context.clearRect(0, 0, this.width, this.height);
     context.fillStyle = "#ffffff";
-    context.fillRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
+    context.fillRect(0, 0, this.width, this.height);
     context.imageSmoothingEnabled = true;
     context.imageSmoothingQuality = "high";
     const transforms = new Map();
@@ -334,6 +351,7 @@ export class NyankoClubRenderer {
   positionedTransform(node, cache) {
     const transform = { ...this.nodeTransform(node, cache) };
     if (node.nodeId === 6 && Number(this.values.certificationRank) <= 0) transform.x = 193;
+    if (node.name.startsWith("ゴールド会員特典アイコン") && this.usesCompactGoldHeader()) transform.y = 356;
     const medalId = this.medalId(node);
     if (medalId !== null) {
       const slot = this.activeMedals().indexOf(medalId);
@@ -341,6 +359,8 @@ export class NyankoClubRenderer {
         transform.x = node.name.includes("数値") ? 145 + slot * 54 : 90 + slot * 53;
       }
     }
+    if (nodeDirective(node, "anchor")?.includes("right")) transform.x = this.width + transform.x;
+    if (nodeDirective(node, "anchor")?.includes("bottom")) transform.y = this.height + transform.y;
     return this.viewportTransform(node, transform);
   }
 
@@ -348,8 +368,8 @@ export class NyankoClubRenderer {
     if (nodeDirective(this.rootNode() ?? { name: "" }, "viewport") !== "pixel8") return transform;
     const space = nodeDirective(node, "space") ?? "card";
     if (space === "canvas") return transform;
-    const scale = LOGICAL_HEIGHT / 640;
-    const xOffset = (LOGICAL_WIDTH - 960 * scale) / 2;
+    const scale = this.height / 640;
+    const xOffset = (this.width - NATIVE_LAYOUT_WIDTH * scale) / 2;
     const yOffset = space === "screen" ? 0 : -40 * scale;
     return {
       x: xOffset + transform.x * scale,
@@ -371,11 +391,17 @@ export class NyankoClubRenderer {
     if (condition && !Boolean(this.values[condition])) return false;
     if (node.name.startsWith("認定ランク") && Number(this.values.certificationRank) <= 0) return false;
     if (node.name.startsWith("会員番号") && Number(this.values.memberNumber) === -1) return false;
+    if (this.usesCompactGoldHeader() && ["累積", "累積日数", "回"].includes(node.name.split(" [", 1)[0])) return false;
     const medalId = this.medalId(node);
     if (medalId !== null && Number(this.values[`abyss${medalId}`]) <= 0) return false;
     const stampNumber = this.stampDay(node, "スタンプ番号");
     if (stampNumber !== null && stampNumber <= this.stampDays) return false;
     return true;
+  }
+
+  usesCompactGoldHeader() {
+    return this.mode === "gold"
+      && (Number(this.values.memberNumber) < 0 || Number(this.values.goldDays) <= 1);
   }
 
   effectiveCutId(node) {
@@ -384,7 +410,15 @@ export class NyankoClubRenderer {
     return node.cutId;
   }
 
-  displaySize(node, cut, image) {
+  displaySize(node, cut, image, transform) {
+    const fill = nodeDirective(node, "fill")?.split("/").map(Number);
+    if (fill?.length === 4 && fill.every(Number.isFinite)) {
+      const [left, top, right, bottom] = fill;
+      return {
+        width: Math.max(1, this.width - left - right) / Math.max(0.001, transform.scaleX),
+        height: Math.max(1, this.height - top - bottom) / Math.max(0.001, transform.scaleY),
+      };
+    }
     return {
       width: node.width || cut?.width || image?.naturalWidth || 1,
       height: node.height || cut?.height || image?.naturalHeight || 1,
@@ -420,6 +454,9 @@ export class NyankoClubRenderer {
     }
     if (key === "memberNumber" && Number(value) >= 0) {
       return String(Math.trunc(Number(value))).padStart(8, "0").slice(-8);
+    }
+    if (["expiryHour", "expiryMinute"].includes(key)) {
+      return String(Math.max(0, Math.trunc(Number(value) || 0))).padStart(2, "0").slice(-2);
     }
     return String(value);
   }
@@ -612,7 +649,7 @@ export class NyankoClubRenderer {
     const image = this.textureFor(node);
     const source = image ? this.nodeCrop(node, image, cut) : null;
     if (!image || !source) return;
-    const size = this.displaySize(node, cut, image);
+    const size = this.displaySize(node, cut, image, transform);
     const repeatOverlap = nodeDirective(node, "repeat");
     const nineSliceMarker = nodeDirective(node, "9slice");
     const blendMode = nodeDirective(node, "blend");
