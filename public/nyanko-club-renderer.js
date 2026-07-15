@@ -134,6 +134,7 @@ export class NyankoClubRenderer {
     this.values = {};
     this.nativeCardOpacity = 1;
     this.customLayers = new Map();
+    this.isolatedSources = new WeakMap();
     this.width = LOGICAL_WIDTH;
     this.height = LOGICAL_HEIGHT;
     this.canvas.width = this.width;
@@ -203,7 +204,7 @@ export class NyankoClubRenderer {
     const regions = {
       brown: { x: 100, y: 0, width: this.width - 200, height: this.height, radius: 0 },
       card: { x: xOffset + 90 * scale, y: -40 * scale + 118 * scale, width: 780 * scale, height: 484 * scale, radius: 22 },
-      character: { x: xOffset + 666 * scale, y: 125 * scale, width: 165 * scale, height: 127.5 * scale, radius: 0 },
+      character: { x: xOffset + 667 * scale, y: 125 * scale, width: 165 * scale, height: 127.5 * scale, radius: 0 },
     };
     return regions[layerId] ?? null;
   }
@@ -602,6 +603,28 @@ export class NyankoClubRenderer {
     return true;
   }
 
+  isolatedSource(image, source) {
+    let imageSources = this.isolatedSources.get(image);
+    if (!imageSources) {
+      imageSources = new Map();
+      this.isolatedSources.set(image, imageSources);
+    }
+    const key = `${source.x}/${source.y}/${source.width}/${source.height}`;
+    if (imageSources.has(key)) return imageSources.get(key);
+    const buffer = document.createElement("canvas");
+    buffer.width = Math.max(1, source.width);
+    buffer.height = Math.max(1, source.height);
+    const bufferContext = buffer.getContext("2d");
+    bufferContext.imageSmoothingEnabled = false;
+    bufferContext.drawImage(
+      image,
+      source.x, source.y, source.width, source.height,
+      0, 0, source.width, source.height,
+    );
+    imageSources.set(key, buffer);
+    return buffer;
+  }
+
   drawRepeated(context, node, source, transform, size, overlapText, image) {
     const overlap = Math.max(0, Number(overlapText) || 0);
     const rotation = Number(nodeDirective(node, "rotate")) || 0;
@@ -612,26 +635,38 @@ export class NyankoClubRenderer {
     const tileHeight = (quarterTurn ? source.width : source.height) * transform.scaleY;
     const stepX = Math.max(1, tileWidth - overlap * transform.scaleX);
     const stepY = Math.max(1, tileHeight - overlap * transform.scaleY);
+    const tileImage = this.isolatedSource(image, source);
+    const tileSource = { x: 0, y: 0, width: source.width, height: source.height };
+    const tilePositions = (start, end, tileSize, step) => {
+      const positions = [];
+      for (let position = start; position < end; position += step) {
+        positions.push(position);
+        if (position + tileSize >= end - 0.001) break;
+      }
+      return positions;
+    };
+    const xPositions = tilePositions(transform.x, transform.x + destinationWidth, tileWidth, stepX);
+    const yPositions = tilePositions(transform.y, transform.y + destinationHeight, tileHeight, stepY);
     context.save();
     context.beginPath();
     context.rect(transform.x, transform.y, destinationWidth, destinationHeight);
     context.clip();
-    for (let y = transform.y; y < transform.y + destinationHeight; y += stepY) {
-      for (let x = transform.x; x < transform.x + destinationWidth; x += stepX) {
+    for (const y of yPositions) {
+      for (const x of xPositions) {
         if (rotation === 90) {
           context.save();
           context.translate(x + tileWidth, y);
           context.rotate(Math.PI / 2);
-          context.drawImage(image, source.x, source.y, source.width, source.height, 0, 0, tileHeight, tileWidth);
+          context.drawImage(tileImage, tileSource.x, tileSource.y, tileSource.width, tileSource.height, 0, 0, tileHeight, tileWidth);
           context.restore();
         } else if (rotation === -90) {
           context.save();
           context.translate(x, y + tileHeight);
           context.rotate(-Math.PI / 2);
-          context.drawImage(image, source.x, source.y, source.width, source.height, 0, 0, tileHeight, tileWidth);
+          context.drawImage(tileImage, tileSource.x, tileSource.y, tileSource.width, tileSource.height, 0, 0, tileHeight, tileWidth);
           context.restore();
         } else {
-          context.drawImage(image, source.x, source.y, source.width, source.height, x, y, tileWidth, tileHeight);
+          context.drawImage(tileImage, tileSource.x, tileSource.y, tileSource.width, tileSource.height, x, y, tileWidth, tileHeight);
         }
       }
     }

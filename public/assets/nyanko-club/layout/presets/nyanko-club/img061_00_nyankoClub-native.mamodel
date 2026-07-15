@@ -1,12 +1,14 @@
 ﻿[modelanim:model]
 3
-125
+127
 -1,-1,0,0,0,0,0,0,1000,1000,0,255,0,root v15.5.0 [viewport:pixel8]
-0,0,1,1,100,0,1200,640,900,900,0,255,0,背景タイル [repeat:1] [space:canvas] [fill:100/0/100/0]
-0,0,11,119,0,0,48,360,1600,1600,0,255,0,画面端 木目 左 [texture:img008] [rotate:-90] [repeat:1] [space:canvas]
-0,0,12,120,76.8,0,15,360,1600,1600,0,255,0,画面端 薄い帯 左 [texture:img008] [rotate:-90] [repeat:1] [space:canvas]
-0,0,12,121,-100,0,15,360,1600,1600,0,255,0,画面端 薄い帯 右 [texture:img008] [rotate:90] [repeat:1] [space:canvas] [anchor:right]
-0,0,11,122,-76.8,0,48,360,1600,1600,0,255,0,画面端 木目 右 [texture:img008] [rotate:90] [repeat:1] [space:canvas] [anchor:right]
+0,0,1,1,98.5,0,1200,640,900,900,0,255,0,背景タイル [repeat:1] [space:canvas] [fill:98.5/0/98.5/0]
+0,0,11,119,0,0,48,640,900,900,0,255,0,画面端 木目 左 外 [texture:img008] [rotate:-90] [repeat:1] [space:canvas]
+0,0,11,123,42.75,0,48,640,900,900,0,255,0,画面端 木目 左 内 [texture:img008] [rotate:-90] [repeat:1] [space:canvas]
+0,0,12,120,85.5,0,15,640,900,900,0,255,0,画面端 薄い帯 左 [texture:img008] [rotate:-90] [repeat:1] [space:canvas]
+0,0,12,121,-99,0,15,640,900,900,0,255,0,画面端 薄い帯 右 [texture:img008] [rotate:90] [repeat:1] [space:canvas] [anchor:right]
+0,0,11,124,-85.95,0,48,640,900,900,0,255,0,画面端 木目 右 内 [texture:img008] [rotate:90] [repeat:1] [space:canvas] [anchor:right]
+0,0,11,122,-43.2,0,48,640,900,900,0,255,0,画面端 木目 右 外 [texture:img008] [rotate:90] [repeat:1] [space:canvas] [anchor:right]
 0,0,50,2,90,118,780,484,1000,1000,0,255,0,通常カード [9slice:61] [mode:normal]
 0,0,51,3,90,118,780,484,1000,1000,0,255,0,ゴールドカード [9slice:60] [mode:gold]
 0,0,48,4,90,118,780,484,1000,1000,0,255,0,ゴールド乗算レイヤー [blend:multiply] [mode:gold]
@@ -113,9 +115,9 @@
 0,0,9,103,392.5,584,0,0,1000,1000,0,255,0,ゴールド会員継続 [when:showGoldContinue] [mode:gold] [space:screen]
 0,0,52,104,695,571,176,46,1000,1000,0,255,0,SNS投稿ボタン [9slice:62] [space:screen]
 0,0,15,105,721.5,578.5,0,0,1000,1000,0,255,0,SNSに投稿 [space:screen]
-0,0,0,106,666,125,165,127.5,1000,1000,0,255,0,プロフィール画像 [texture:profile-709-0] [crop:9/21/110/85] [space:screen]
-0,0,75,107,666,125,0,0,1000,1000,0,255,0,プロフィール枠 通常 [tint:#9ad5dc] [mode:normal] [space:screen]
-0,0,75,108,666,125,0,0,1000,1000,0,255,0,プロフィール枠 ゴールド [tint:#313131] [mode:gold] [space:screen]
+0,0,0,106,667,125,165,127.5,1000,1000,0,255,0,プロフィール画像 [texture:profile-709-0] [crop:9/21/110/85] [space:screen]
+0,0,75,107,667,125,0,0,1000,1000,0,255,0,プロフィール枠 通常 [tint:#9ad5dc] [mode:normal] [space:screen]
+0,0,75,108,667,125,0,0,1000,1000,0,255,0,プロフィール枠 ゴールド [tint:#313131] [mode:gold] [space:screen]
 0,0,0,109,90,66,57,57,1000,1000,0,255,0,アビスメダル177 [texture:abyss-medal-177]
 0,0,0,110,143,66,57,57,1000,1000,0,255,0,アビスメダル176 [texture:abyss-medal-176]
 0,0,0,111,196,66,57,57,1000,1000,0,255,0,アビスメダル175 [texture:abyss-medal-175]
@@ -125,6 +127,6 @@
 0,0,57,115,253,116,0,0,1000,1000,0,255,0,アビスメダル175 数値 [texture:img001] [value:abyss175] [digits-base:57] [align:right] [valign:bottom] [spacing:-3]
 0,0,57,116,307,116,0,0,1000,1000,0,255,0,アビスメダル174 数値 [texture:img001] [value:abyss174] [digits-base:57] [align:right] [valign:bottom] [spacing:-3]
 0,0,9,117,105,-89,95,95,900,900,0,255,0,戻るボタン 丸ウィンドウ [texture:img006] [crop:257/1/95/95] [space:canvas] [anchor:bottom]
-0,0,3,118,110.4,-73.5,84,60,900,900,0,255,0,戻るボタン 矢印 [texture:img006] [crop:427/172/84/60] [space:canvas] [anchor:bottom]
+0,0,3,118,112.4,-73.5,84,60,900,900,0,255,0,戻るボタン 矢印 [texture:img006] [crop:427/172/84/60] [space:canvas] [anchor:bottom]
 1000,0,255
 0
