@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="にゃんこキャラクターの imgcut・mamodel・maanim を公式準拠のWebGL描画で再生するKBCツール">
+  <meta name="description" content="キャラのモーションを再生するKBCツール">
   <title>キャラモーション確認 | KBC</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -31,7 +31,7 @@
 
     <main>
       <div class="page-intro motion-intro">
-        <div><h1>キャラモーション確認</h1><p>PNG + imgcut + mamodel + maanim を公式準拠のWebGL描画で再生します。</p></div>
+        <div><h1>キャラモーション確認</h1>
         <span id="load-status" class="status-tag" role="status">LOADING</span>
       </div>
 
@@ -43,13 +43,13 @@
       <label>
         形態
         <select id="form-select" name="form">
-          <option value="f">f / 第1形態</option>
-          <option value="c">c / 第2形態</option>
-          <option value="s">s / 第3形態</option>
-          <option value="u">u / 第4形態</option>
+          <option value="f">第1形態</option>
+          <option value="c">第2形態</option>
+          <option value="s">第3形態</option>
+          <option value="u">第4形態</option>
         </select>
       </label>
-      <button type="submit">private素材を読み込む</button>
+      <button type="submit">読み込む</button>
       <button id="local-load" type="button" class="secondary">ローカルファイル</button>
       <input id="local-files" type="file" multiple accept=".png,.imgcut,.mamodel,.maanim" hidden>
     </form>
