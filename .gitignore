@@ -1,39 +1,17 @@
-__pycache__/
-*.py[cod]
-*.pyo
-*.pyd
-.Python
-.venv/
-venv/
-env/
+﻿# ローカル環境
 .env
 .env.*
-!.env.example
+.venv/
+node_modules/
+
+# キャッシュ
+__pycache__/
+*.py[cod]
 .pytest_cache/
 .ruff_cache/
-.mypy_cache/
-.bcsfe/
-dist/
-build/
-*.egg-info/
-uploads/
-backups/
-edited/
 
-# 公開リポジトリへは含めない設計資料・開発用ファイル
-README.md
-docs/
-tests/
-pyproject.toml
-.env.example
-src/kbc_save_editor/cli.py
-src/kbc_save_editor/bcsfe_update.py
-
-# 配置検証用ツールと検証専用素材
-public/imgcut-mamodel-placer.html
-public/nyanko-club-layout-editor.html
-public/assets/nyanko-club/layout/cuts/
-public/assets/nyanko-club/layout/references/
-public/assets/nyanko-club/layout/img061_00_nyankoClub.mamodel
-public/assets/nyanko-club/layout/presets/nyanko-club/img061_00_nyankoClub-native-gold.mamodel
-public/assets/nyanko-club/layout/presets/nyanko-club/img061_00_nyankoClub.mamodel
+# OS・エディタ
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

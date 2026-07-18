@@ -1,0 +1,458 @@
+﻿<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KBC Save Editor</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f4f6f5;
+      --panel: #ffffff;
+      --soft: #edf4f1;
+      --line: #d7dfdb;
+      --text: #18221f;
+      --muted: #63706b;
+      --accent: #126b59;
+      --accent-soft: #dceee8;
+      --danger: #b42318;
+      font-family: "Segoe UI", "Noto Sans JP", system-ui, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; scroll-padding-top: 114px; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    button, input, select { font: inherit; }
+
+    .app-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      width: min(1320px, calc(100% - 28px));
+      margin: 0 auto;
+      padding: 14px 0 10px;
+    }
+
+    h1 { margin: 0; font-size: 24px; letter-spacing: 0; }
+    h2 { margin: 0; font-size: 19px; letter-spacing: 0; }
+    h3 { margin: 0 0 10px; font-size: 14px; letter-spacing: 0; }
+
+    .status {
+      min-height: 34px;
+      max-width: 50%;
+      padding: 7px 11px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--panel);
+      color: var(--muted);
+      font-size: 13px;
+      overflow-wrap: anywhere;
+    }
+
+    .status.error { color: var(--danger); border-color: #efb4af; background: #fff7f6; }
+
+    .category-nav-wrap {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      border-block: 1px solid var(--line);
+      background: rgba(244, 246, 245, 0.96);
+      backdrop-filter: blur(8px);
+    }
+
+    .category-nav {
+      display: flex;
+      gap: 5px;
+      width: min(1320px, calc(100% - 28px));
+      margin: 0 auto;
+      padding: 8px 0;
+      overflow-x: auto;
+      scrollbar-width: thin;
+    }
+
+    .category-nav a {
+      flex: 0 0 auto;
+      min-height: 34px;
+      padding: 7px 10px;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 650;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .category-nav a:hover,
+    .category-nav a.active { color: var(--accent); border-color: #bfd8d0; background: var(--accent-soft); }
+
+    main {
+      display: grid;
+      gap: 12px;
+      width: min(1320px, calc(100% - 28px));
+      margin: 0 auto;
+      padding: 14px 0 32px;
+    }
+
+    .category-section {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      overflow-x: auto;
+    }
+
+    .section-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 48px;
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--line);
+      background: #fbfcfc;
+    }
+
+    .section-note { color: var(--muted); font-size: 12px; }
+    .section-body { padding: 12px 14px 14px; }
+
+    .form-grid,
+    .data-grid,
+    .metric-grid,
+    .edit-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      align-items: start;
+    }
+
+    .data-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .metric-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .edit-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+    .tool,
+    .data-block {
+      min-width: 0;
+      padding: 11px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #fff;
+    }
+
+    .data-block { background: #fcfdfd; }
+
+    label {
+      display: block;
+      margin: 9px 0 5px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    input,
+    select {
+      width: 100%;
+      min-height: 36px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--text);
+      padding: 0 9px;
+    }
+
+    input[type="file"] { padding: 7px; }
+
+    button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      min-height: 38px;
+      margin-top: 11px;
+      border: 0;
+      border-radius: 6px;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 750;
+      cursor: pointer;
+    }
+
+    button:disabled { opacity: 0.58; cursor: wait; }
+
+    .radio-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+    .radio-row label { margin: 0; padding: 7px; border: 1px solid var(--line); border-radius: 6px; color: var(--text); }
+    .radio-row input { width: auto; min-height: 0; margin-right: 4px; }
+
+    .source-info,
+    .download,
+    .code-result {
+      margin-top: 9px;
+      padding: 8px 9px;
+      border-radius: 6px;
+      background: var(--soft);
+      color: var(--muted);
+      font-size: 12px;
+      overflow-wrap: anywhere;
+    }
+
+    .download,
+    .code-result { display: none; color: var(--text); }
+    .download a { color: var(--accent); font-weight: 750; text-decoration: none; }
+
+    .metric {
+      min-width: 0;
+      min-height: 74px;
+      padding: 10px 11px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--soft);
+    }
+
+    .metric span { display: block; margin-bottom: 5px; color: var(--muted); font-size: 12px; }
+    .metric strong { font-size: 18px; overflow-wrap: anywhere; }
+
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 13px; }
+    th, td { padding: 6px 7px; border-bottom: 1px solid var(--line); text-align: left; overflow-wrap: anywhere; }
+    th { color: var(--muted); background: #f8faf9; font-size: 11px; }
+    th:last-child, td:last-child { text-align: right; }
+    tbody tr:last-child td { border-bottom: 0; }
+    .event-link { color: var(--accent); font-weight: 700; text-decoration: none; }
+    .event-link:hover { text-decoration: underline; }
+
+    .empty {
+      padding: 28px 12px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .pending { color: var(--muted); font-size: 13px; }
+    .mono { font-family: Consolas, "SFMono-Regular", monospace; font-size: 12px; }
+    .wide { grid-column: 1 / -1; }
+
+    details { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 10px; }
+    summary { color: var(--accent); font-weight: 700; cursor: pointer; }
+    .detail-tools { display: flex; gap: 8px; margin: 10px 0; }
+    .detail-tools input { max-width: 420px; }
+
+    .nyanko-club-view { display: grid; gap: 12px; }
+
+    .nyanko-club-stage {
+      width: 100%;
+      overflow: hidden;
+      border: 1px solid #7d3b1d;
+      border-radius: 6px;
+      background: #793514;
+      box-shadow: 0 2px 8px rgba(62, 32, 16, 0.22);
+    }
+
+    .nyanko-club-scene {
+      display: block;
+      width: 100%;
+      height: auto;
+      aspect-ratio: 1280 / 576;
+    }
+
+    .nyanko-sprite {
+      display: inline-block;
+      flex: 0 0 auto;
+      background-repeat: no-repeat;
+      vertical-align: middle;
+    }
+
+    .nyanko-game-text,
+    .nyanko-day-number {
+      font-family: "Arial Black", "Noto Sans JP", sans-serif;
+      font-weight: 900;
+      letter-spacing: 0;
+      paint-order: stroke fill;
+    }
+
+    .nyanko-game-text {
+      fill: #111;
+      stroke: #fff;
+      stroke-width: 4px;
+      font-size: 23px;
+    }
+
+    .nyanko-day-number {
+      fill: rgba(255, 255, 255, 0.34);
+      font-size: 14px;
+      stroke: none;
+    }
+
+    .nyanko-club-details { margin-top: 0; }
+
+    @media (max-width: 900px) {
+      .form-grid, .data-grid, .metric-grid, .edit-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .app-header { align-items: flex-start; }
+      .status { max-width: 60%; }
+    }
+
+    @media (max-width: 600px) {
+      html { scroll-padding-top: 102px; }
+      .app-header { display: block; }
+      .status { max-width: none; margin-top: 8px; }
+      .form-grid, .data-grid, .metric-grid, .edit-grid { grid-template-columns: 1fr; }
+      .section-heading { align-items: flex-start; flex-direction: column; }
+      .radio-row { grid-template-columns: 1fr; }
+      .nyanko-club-stage { border-radius: 4px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <h1>KBC Save Editor</h1>
+    <div id="status" class="status">待機中</div>
+  </header>
+
+  <div class="category-nav-wrap">
+    <nav class="category-nav" aria-label="セーブデータ分類">
+      <a class="active" href="#save-load">セーブデータ取得</a>
+      <a href="#user-status">ユーザーステータス</a>
+      <a href="#allies">味方キャラ</a>
+      <a href="#enemies">敵キャラ</a>
+      <a href="#talent-orbs">本能玉</a>
+      <a href="#special-talent-orbs">特殊本能玉</a>
+      <a href="#event-items">イベントアイテム</a>
+      <a href="#treasure-chests">宝箱</a>
+      <a href="#gamatoto">ガマトト</a>
+      <a href="#ototo">オトート</a>
+      <a href="#account">アカウント</a>
+      <a href="#gacha">ガチャ</a>
+      <a href="#medals">メダル</a>
+      <a href="#nyanko-club">にゃんこクラブ</a>
+    </nav>
+  </div>
+
+  <main>
+    <section id="save-load" class="category-section">
+      <div class="section-heading"><h2>セーブデータ取得</h2><span class="section-note">読込・取得・引継ぎコード作成</span></div>
+      <div class="section-body form-grid">
+        <div class="tool">
+          <h3>本番の公式通信</h3>
+          <label for="adminKey">管理キー</label>
+          <input id="adminKey" type="password" autocomplete="current-password" placeholder="管理者のみ入力">
+          <div class="source-info">ローカルでは不要です。本番で引継ぎコードの取得・作成を行う場合だけ使用します。</div>
+        </div>
+        <form id="fileForm" class="tool">
+          <h3>SAVE_DATAを選ぶ</h3>
+          <label for="saveFile">SAVE_DATA</label>
+          <input id="saveFile" name="file" type="file" required>
+          <label for="fileCountry">国コード</label>
+          <select id="fileCountry" name="country_code">
+            <option value="">自動判定</option><option value="jp">jp</option><option value="en">en</option><option value="kr">kr</option><option value="tw">tw</option>
+          </select>
+          <button type="submit">解析</button>
+        </form>
+
+        <form id="codeForm" class="tool">
+          <h3>引継ぎコードから取得</h3>
+          <label for="transferCode">引継ぎコード</label>
+          <input id="transferCode" name="transfer_code" autocomplete="off" required>
+          <label for="confirmationCode">認証番号</label>
+          <input id="confirmationCode" name="confirmation_code" autocomplete="off" required>
+          <label for="codeCountry">国コード</label>
+          <select id="codeCountry" name="country_code" required>
+            <option value="jp">jp</option><option value="en">en</option><option value="kr">kr</option><option value="tw">tw</option>
+          </select>
+          <button type="submit">取得して解析</button>
+          <div id="downloadBox" class="download"><a id="downloadLink" download="SAVE_DATA">取得したSAVE_DATAを保存</a></div>
+        </form>
+
+        <form id="createCodeForm" class="tool">
+          <h3>引継ぎコードを作成</h3>
+          <div id="createSourceInfo" class="source-info">作成元: SAVE_DATA未読込</div>
+          <label for="createCountry">国コード</label>
+          <select id="createCountry" name="country_code">
+            <option value="">読込中の国コードを使用</option><option value="jp">jp</option><option value="en">en</option><option value="kr">kr</option><option value="tw">tw</option>
+          </select>
+          <label>お問い合わせコード</label>
+          <div class="radio-row">
+            <label><input type="radio" name="inquiry_mode" value="keep" checked>維持</label>
+            <label><input type="radio" name="inquiry_mode" value="new">新規取得</label>
+            <label><input type="radio" name="inquiry_mode" value="custom">変更</label>
+          </div>
+          <label for="customInquiry">変更後のお問い合わせコード</label>
+          <input id="customInquiry" name="inquiry_code" autocomplete="off">
+          <button type="submit">引継ぎコードを作成</button>
+          <div id="createdCodeResult" class="code-result"></div>
+        </form>
+      </div>
+    </section>
+
+    <section id="user-status" class="category-section">
+      <div class="section-heading"><h2>ユーザーステータス</h2><span class="section-note">基本情報と所持アイテム</span></div>
+      <div id="userStatusResult" class="section-body empty">SAVE_DATAを解析すると表示されます</div>
+    </section>
+
+    <section id="allies" class="category-section">
+      <div class="section-heading"><h2>味方キャラ</h2><span class="section-note">詳細分類は後で追加</span></div>
+      <div id="alliesResult" class="section-body empty">未読込</div>
+    </section>
+
+    <section id="enemies" class="category-section">
+      <div class="section-heading"><h2>敵キャラ</h2><span class="section-note">詳細分類は後で追加</span></div>
+      <div id="enemiesResult" class="section-body empty">未読込</div>
+    </section>
+
+    <section id="talent-orbs" class="category-section">
+      <div class="section-heading"><h2>本能玉</h2><span class="section-note">所持種類と総数</span></div>
+      <div id="talentOrbsResult" class="section-body empty">未読込</div>
+    </section>
+
+    <section id="special-talent-orbs" class="category-section">
+      <div class="section-heading"><h2>特殊本能玉</h2><span class="section-note">分類方法を後で追加</span></div>
+      <div id="specialTalentOrbsResult" class="section-body empty">未読込</div>
+    </section>
+
+    <section id="event-items" class="category-section">
+      <div class="section-heading"><h2>イベントアイテム</h2><span class="section-note">イベント・福引チケット</span></div>
+      <div id="eventItemsResult" class="section-body empty">未読込</div>
+    </section>
+
+    <section id="treasure-chests" class="category-section">
+      <div class="section-heading"><h2>宝箱</h2><span class="section-note">種類別所持数</span></div>
+      <div id="treasureChestsResult" class="section-body empty">未読込</div>
+    </section>
+
+    <section id="gamatoto" class="category-section">
+      <div class="section-heading"><h2>ガマトト</h2><span class="section-note">探検状況と隊員</span></div>
+      <div id="gamatotoResult" class="section-body empty">未読込</div>
+    </section>
+
+    <section id="ototo" class="category-section">
+      <div class="section-heading"><h2>オトート</h2><span class="section-note">開発状況</span></div>
+      <div id="ototoResult" class="section-body empty">未読込</div>
+    </section>
+
+    <section id="account" class="category-section">
+      <div class="section-heading"><h2>アカウント</h2><span class="section-note">アカウント識別情報</span></div>
+      <div id="accountResult" class="section-body empty">未読込</div>
+    </section>
+
+    <section id="gacha" class="category-section">
+      <div class="section-heading"><h2>ガチャ</h2><span class="section-note">各ガチャシード</span></div>
+      <div id="gachaResult" class="section-body empty">未読込</div>
+    </section>
+
+    <section id="medals" class="category-section">
+      <div class="section-heading"><h2>メダル</h2><span class="section-note">詳細分類は後で追加</span></div>
+      <div id="medalsResult" class="section-body empty">未読込</div>
+    </section>
+
+    <section id="nyanko-club" class="category-section">
+      <div class="section-heading"><h2>にゃんこクラブ</h2><span class="section-note">会員カード表示用情報</span></div>
+      <div id="nyankoClubResult" class="section-body empty">未読込</div>
+    </section>
+  </main>
+
+  <script src="/_lab/save-editor.js" defer></script>
+</body>
+</html>
