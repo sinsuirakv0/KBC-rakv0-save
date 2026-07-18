@@ -5,17 +5,35 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="にゃんこキャラクターの imgcut・mamodel・maanim を公式準拠のWebGL描画で再生するKBCツール">
   <title>キャラモーション確認 | KBC</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/motion.css">
+  <link rel="stylesheet" href="/kbc-common.css">
+  <script type="module" src="/_lab/kbc-theme.js"></script>
 </head>
-<body>
-  <main>
-    <header>
-      <div>
-        <h1>キャラモーション確認</h1>
-        <p>PNG + imgcut + mamodel + maanim を公式準拠のWebGL描画で再生します。</p>
+<body class="kbc-page motion-page">
+  <div class="site-shell fade-in">
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="KBC ホーム">
+        <img class="brand-logo" src="/assets/kbc-logo.png" alt="">
+        <span><strong class="brand-name">KBC</strong><small class="brand-tool-name">キャラモーション確認</small></span>
+      </a>
+      <div class="header-actions">
+        <div class="theme-switcher" role="group" aria-label="テーマ">
+          <button class="theme-button" type="button" data-theme-value="original" aria-label="オリジナルテーマ">●</button>
+          <button class="theme-button" type="button" data-theme-value="dark" aria-label="ダークテーマ">◐</button>
+          <button class="theme-button" type="button" data-theme-value="light" aria-label="ライトテーマ">○</button>
+        </div>
+        <a class="header-home-link" href="/">Home</a>
       </div>
-      <span id="load-status" class="status" role="status">LOADING</span>
     </header>
+
+    <main>
+      <div class="page-intro motion-intro">
+        <div><h1>キャラモーション確認</h1><p>PNG + imgcut + mamodel + maanim を公式準拠のWebGL描画で再生します。</p></div>
+        <span id="load-status" class="status-tag" role="status">LOADING</span>
+      </div>
 
     <form id="unit-form" class="unit-form">
       <label>
@@ -121,7 +139,9 @@
         <div><dt>source</dt><dd><code id="source-name">—</code></dd></div>
       </dl>
     </section>
-  </main>
+    </main>
+    <footer class="site-footer">KBC</footer>
+  </div>
 
   <div id="toast" class="toast" role="alert"></div>
   <script type="module" src="/_lab/motion-app.js"></script>

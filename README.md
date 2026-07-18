@@ -24,8 +24,10 @@ cd D:\KBC\KBC-rakv0-lab
 - `public/nyanko-club-forgery.html`: クラブ偽造のHTML
 - `public/nyanko-club-forgery.css`: クラブ偽造のCSS
 - `public/ranking.html`: ランキング調査のHTML
+- `public/ranking.css`: ランキング調査のCSS
 - `public/motion.html`: キャラモーション確認のHTML
 - `public/motion.css`: キャラモーション確認のCSS
+- `public/kbc-common.css`: `KBC-rakv0`準拠の共通トークン・ヘッダー・カード
 - `public/assets/kbc-logo.png`: KBCロゴ
 
 ブラウザ用JavaScriptは実行アプリの`/_lab/`から配信されます。privateキャラ素材はサーバーAPIがGitHubから取得し、GitHub tokenをブラウザへ渡しません。

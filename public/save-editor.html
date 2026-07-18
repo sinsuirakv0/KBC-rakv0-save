@@ -4,6 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>KBC Save Editor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
   <style>
     :root {
       color-scheme: light;
@@ -305,12 +308,26 @@
       .nyanko-club-stage { border-radius: 4px; }
     }
   </style>
+  <link rel="stylesheet" href="/kbc-common.css">
+  <script type="module" src="/_lab/kbc-theme.js"></script>
 </head>
-<body>
-  <header class="app-header">
-    <h1>KBC Save Editor</h1>
-    <div id="status" class="status">待機中</div>
-  </header>
+<body class="kbc-page save-page">
+  <div class="site-shell fade-in">
+    <header class="app-header kbc-header">
+      <a class="brand" href="/" aria-label="KBC ホーム">
+        <img class="brand-logo" src="/assets/kbc-logo.png" alt="">
+        <span><strong class="brand-name">KBC</strong><small class="brand-tool-name">セーブデータエディタ</small></span>
+      </a>
+      <div class="header-actions">
+        <div id="status" class="status">待機中</div>
+        <div class="theme-switcher" role="group" aria-label="テーマ">
+          <button class="theme-button" type="button" data-theme-value="original" aria-label="オリジナルテーマ">●</button>
+          <button class="theme-button" type="button" data-theme-value="dark" aria-label="ダークテーマ">◐</button>
+          <button class="theme-button" type="button" data-theme-value="light" aria-label="ライトテーマ">○</button>
+        </div>
+        <a class="header-home-link" href="/">Home</a>
+      </div>
+    </header>
 
   <div class="category-nav-wrap">
     <nav class="category-nav" aria-label="セーブデータ分類">
@@ -335,12 +352,6 @@
     <section id="save-load" class="category-section">
       <div class="section-heading"><h2>セーブデータ取得</h2><span class="section-note">読込・取得・引継ぎコード作成</span></div>
       <div class="section-body form-grid">
-        <div class="tool">
-          <h3>本番の公式通信</h3>
-          <label for="adminKey">管理キー</label>
-          <input id="adminKey" type="password" autocomplete="current-password" placeholder="管理者のみ入力">
-          <div class="source-info">ローカルでは不要です。本番で引継ぎコードの取得・作成を行う場合だけ使用します。</div>
-        </div>
         <form id="fileForm" class="tool">
           <h3>SAVE_DATAを選ぶ</h3>
           <label for="saveFile">SAVE_DATA</label>
@@ -451,7 +462,9 @@
       <div class="section-heading"><h2>にゃんこクラブ</h2><span class="section-note">会員カード表示用情報</span></div>
       <div id="nyankoClubResult" class="section-body empty">未読込</div>
     </section>
-  </main>
+    </main>
+    <footer class="site-footer">KBC</footer>
+  </div>
 
   <script src="/_lab/save-editor.js" defer></script>
 </body>

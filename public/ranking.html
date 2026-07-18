@@ -1,91 +1,78 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="ja">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>にゃんこランキング調査</title>
-  <style>
-    :root { color-scheme: dark; --bg:#10131a; --panel:#191f2b; --line:#30394a; --ink:#f4f6fb; --muted:#a8b0c0; --cat:#ffd83d; --accent:#66d9c8; --danger:#ff6b6b; }
-    * { box-sizing:border-box; }
-    body { margin:0; min-height:100vh; font-family:"Yu Gothic UI",Meiryo,sans-serif; color:var(--ink); background:radial-gradient(circle at 20% 0,#26314a 0,transparent 38%),var(--bg); }
-    main { width:min(980px,calc(100% - 32px)); margin:0 auto; padding:38px 0 64px; }
-    header { display:flex; align-items:center; gap:16px; margin-bottom:24px; }
-    header img { width:64px; height:64px; object-fit:contain; filter:drop-shadow(0 6px 10px #0008); }
-    h1 { margin:0; font-size:clamp(25px,5vw,40px); letter-spacing:.03em; }
-    header p { margin:6px 0 0; color:var(--muted); }
-    .grid { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(290px,.9fr); gap:20px; }
-    .card { padding:22px; border:1px solid var(--line); border-radius:18px; background:color-mix(in srgb,var(--panel) 94%,transparent); box-shadow:0 18px 50px #0005; }
-    h2 { margin:0 0 18px; font-size:18px; }
-    label { display:grid; gap:7px; margin:0 0 16px; color:var(--muted); font-size:13px; font-weight:700; }
-    select,input,button { width:100%; border-radius:10px; font:inherit; }
-    select,input { border:1px solid var(--line); padding:12px 13px; color:var(--ink); background:#101620; outline:none; }
-    select:focus,input:focus { border-color:var(--accent); box-shadow:0 0 0 3px #66d9c822; }
-    .two { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-    button { border:0; padding:13px 16px; font-weight:800; cursor:pointer; transition:.15s transform,.15s opacity; }
-    button:hover { transform:translateY(-1px); }
-    button:disabled { cursor:wait; opacity:.55; transform:none; }
-    .primary { color:#171300; background:var(--cat); }
-    .secondary { margin-top:10px; color:var(--ink); background:#2a3445; }
-    .warning { margin:16px 0; padding:12px; border-left:3px solid var(--danger); color:#ffd6d6; background:#ff6b6b12; font-size:13px; line-height:1.6; }
-    .percent { display:grid; place-items:center; min-height:210px; text-align:center; }
-    .percent strong { display:block; color:var(--cat); font-size:72px; line-height:1; }
-    .percent span { color:var(--muted); }
-    .facts { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-    .fact { padding:12px; border-radius:10px; background:#111722; }
-    .fact small { display:block; color:var(--muted); margin-bottom:4px; }
-    .fact b { overflow-wrap:anywhere; }
-    #status { min-height:24px; margin:16px 0 0; color:var(--accent); }
-    details { margin-top:16px; }
-    pre { max-height:320px; overflow:auto; padding:13px; border-radius:10px; background:#0b0f16; color:#cbd5e7; font-size:12px; white-space:pre-wrap; }
-    .hidden { display:none !important; }
-    @media (max-width:760px) { .grid { grid-template-columns:1fr; } main { padding-top:22px; } }
-  </style>
+  <meta name="color-scheme" content="dark light">
+  <title>ランキング調査 | KBC</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/kbc-common.css">
+  <link rel="stylesheet" href="/ranking.css">
+  <script type="module" src="/_lab/kbc-theme.js"></script>
 </head>
-<body>
-<main>
-  <header>
-    <img src="/assets/kbc-logo.png" alt="KBC">
-    <div><h1>ランキング調査</h1><p>使い捨てアカウントで公式ランキングの現在ボーダーを確認します。</p></div>
-  </header>
-  <div class="grid">
-    <section class="card">
-      <h2>送信データ</h2>
-      <label>管理キー（本番の送信時のみ）
-        <input id="adminKey" type="password" autocomplete="current-password" placeholder="管理者のみ入力">
-      </label>
-      <label>ランキング
-        <select id="event">
-          <option value="85001" data-country="ja" data-stage="11047" data-api="legacy">通常ランキング — stage 11047 / ranking 85001</option>
-          <option value="90011" data-country="en" data-stage="33000" data-api="v2">グランドアビス EN — stage 33000 / ranking 90011</option>
-        </select>
-      </label>
-      <div id="normalFields"><label>スコア<input id="score" type="number" min="1" step="1" value="1"></label></div>
-      <div id="abyssFields" class="two hidden">
-        <label>到達階層<input id="floor" type="number" min="0" step="1" value="1"></label>
-        <label>残キャラ数<input id="remaining" type="number" min="0" max="999" step="1" value="1"></label>
+<body class="kbc-page">
+  <div class="site-shell fade-in">
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="KBC ホーム">
+        <img class="brand-logo" src="/assets/kbc-logo.png" alt="">
+        <span><strong class="brand-name">KBC</strong><small class="brand-tool-name">ランキング調査</small></span>
+      </a>
+      <div class="header-actions">
+        <div class="theme-switcher" role="group" aria-label="テーマ">
+          <button class="theme-button" type="button" data-theme-value="original" aria-label="オリジナルテーマ">●</button>
+          <button class="theme-button" type="button" data-theme-value="dark" aria-label="ダークテーマ">◐</button>
+          <button class="theme-button" type="button" data-theme-value="light" aria-label="ライトテーマ">○</button>
+        </div>
+        <a class="header-home-link" href="/">Home</a>
       </div>
-      <div class="facts">
-        <div class="fact"><small>送信ranking ID</small><b id="rankingId">85001</b></div>
-        <div class="fact"><small>送信score</small><b id="encodedScore">1</b></div>
+    </header>
+
+    <main>
+      <div class="page-intro">
+        <h1>ランキング調査</h1>
+        <p>使い捨てアカウントで公式ランキングの現在ボーダーを確認します。</p>
       </div>
-      <div class="warning">実行すると公式サーバーへ得点を1回送信します。既存セーブは使わず、毎回新しい調査用アカウントを発行します。</div>
-      <button id="submit" class="primary">公式サーバーへ送信して確認</button>
-      <button id="metadata" class="secondary hidden">開催情報だけ取得</button>
-      <p id="status" role="status"></p>
-    </section>
-    <section class="card">
-      <h2>現在の判定</h2>
-      <div class="percent"><div><strong id="percentile">—</strong><span>上位パーセント</span></div></div>
-      <div class="facts">
-        <div class="fact"><small>返却score</small><b id="resultScore">—</b></div>
-        <div class="fact"><small>報酬帯</small><b id="rewardCount">—</b></div>
-        <div class="fact"><small>終了</small><b id="closed">—</b></div>
-        <div class="fact"><small>集計完了</small><b id="completed">—</b></div>
+      <div class="kbc-form-grid">
+        <section class="kbc-panel ranking-form">
+          <div class="card-header"><h2>送信データ</h2><span class="category-tag">REQUEST</span></div>
+          <label>ランキング
+            <select id="event">
+              <option value="85001" data-country="ja" data-stage="11047" data-api="legacy">通常ランキング — stage 11047 / ranking 85001</option>
+              <option value="90011" data-country="en" data-stage="33000" data-api="v2">グランドアビス EN — stage 33000 / ranking 90011</option>
+            </select>
+          </label>
+          <div id="normalFields"><label>スコア<input id="score" type="number" min="1" step="1" value="1"></label></div>
+          <div id="abyssFields" class="two hidden">
+            <label>到達階層<input id="floor" type="number" min="0" step="1" value="1"></label>
+            <label>残キャラ数<input id="remaining" type="number" min="0" max="999" step="1" value="1"></label>
+          </div>
+          <div class="facts">
+            <div class="fact"><small>送信ranking ID</small><b id="rankingId">85001</b></div>
+            <div class="fact"><small>送信score</small><b id="encodedScore">1</b></div>
+          </div>
+          <div class="kbc-warning">実行すると公式サーバーへ得点を1回送信します。既存セーブは使わず、毎回新しい調査用アカウントを発行します。</div>
+          <button id="submit" class="kbc-primary">公式サーバーへ送信して確認</button>
+          <button id="metadata" class="kbc-secondary hidden">開催情報だけ取得</button>
+          <p id="status" role="status"></p>
+        </section>
+
+        <section class="kbc-panel ranking-result">
+          <div class="card-header"><h2>現在の判定</h2><span class="category-tag">RESULT</span></div>
+          <div class="percent"><div><strong id="percentile">—</strong><span>上位パーセント</span></div></div>
+          <div class="facts">
+            <div class="fact"><small>返却score</small><b id="resultScore">—</b></div>
+            <div class="fact"><small>報酬帯</small><b id="rewardCount">—</b></div>
+            <div class="fact"><small>終了</small><b id="closed">—</b></div>
+            <div class="fact"><small>集計完了</small><b id="completed">—</b></div>
+          </div>
+          <details><summary>レスポンス詳細</summary><pre id="raw">まだ取得していません。</pre></details>
+        </section>
       </div>
-      <details><summary>レスポンス詳細</summary><pre id="raw">まだ取得していません。</pre></details>
-    </section>
+    </main>
+    <footer class="site-footer">KBC</footer>
   </div>
-</main>
-<script src="/_lab/ranking.js" defer></script>
+  <script src="/_lab/ranking.js" defer></script>
 </body>
 </html>
