@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark light">
-  <title>KBC Tools</title>
+  <title>KBC</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
@@ -17,7 +17,7 @@
     <header class="site-header">
       <a class="brand" href="/" aria-label="KBC ホーム">
         <img class="brand-logo" src="/assets/kbc-logo.png" alt="">
-        <span><strong class="brand-name">KBC</strong><small class="brand-tool-name">Tools</small></span>
+        <strong class="brand-name">KBC</strong>
       </a>
       <div class="header-actions">
         <div class="theme-switcher" role="group" aria-label="テーマ">
@@ -30,32 +30,22 @@
     </header>
 
     <main>
-      <div class="page-intro">
-        <h1>KBC Tools</h1>
-        <p>使用するツールを選んでください。</p>
+      <div class="tool-grid home-grid">
+        <section class="tool-card">
+          <h2>セーブ</h2>
+          <ul class="link-list">
+            <li><a href="/save-editor">セーブデータエディタ</a></li>
+            <li><a href="/nyanko-club-forgery">にゃんこクラブ偽装</a></li>
+          </ul>
+        </section>
+        <section class="tool-card">
+          <h2>調査</h2>
+          <ul class="link-list">
+            <li><a href="/tools/ranking">ランキング調査</a></li>
+            <li><a href="/tools/motion">キャラモーション確認</a></li>
+          </ul>
+        </section>
       </div>
-      <nav class="tool-grid" aria-label="ツール一覧">
-        <a class="tool-card" href="/save-editor">
-          <div class="card-header"><h2>セーブデータエディタ</h2><span class="category-tag">SAVE</span></div>
-          <p>セーブデータの確認、編集、引継ぎコードの取得・発行を行います。</p>
-          <span class="open">開く →</span>
-        </a>
-        <a class="tool-card" href="/nyanko-club-forgery">
-          <div class="card-header"><h2>にゃんこクラブ偽装</h2><span class="category-tag">CLUB</span></div>
-          <p>にゃんこクラブの会員証表示を編集し、画像として出力します。</p>
-          <span class="open">開く →</span>
-        </a>
-        <a class="tool-card" href="/tools/ranking">
-          <div class="card-header"><h2>ランキング調査</h2><span class="category-tag">RANKING</span></div>
-          <p>公式ランキングへ調査用スコアを送り、現在の上位パーセントを確認します。</p>
-          <span class="open">開く →</span>
-        </a>
-        <a class="tool-card" href="/tools/motion">
-          <div class="card-header"><h2>キャラモーション確認</h2><span class="category-tag">MOTION</span></div>
-          <p>private素材を読み込み、公式準拠のWebGL描画でモーションを確認します。</p>
-          <span class="open">開く →</span>
-        </a>
-      </nav>
     </main>
     <footer class="site-footer">KBC</footer>
   </div>

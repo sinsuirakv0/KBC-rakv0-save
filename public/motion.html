@@ -17,7 +17,7 @@
     <header class="site-header">
       <a class="brand" href="/" aria-label="KBC ホーム">
         <img class="brand-logo" src="/assets/kbc-logo.png" alt="">
-        <span><strong class="brand-name">KBC</strong><small class="brand-tool-name">キャラモーション確認</small></span>
+        <strong class="brand-name">KBC</strong>
       </a>
       <div class="header-actions">
         <div class="theme-switcher" role="group" aria-label="テーマ">
@@ -31,7 +31,7 @@
 
     <main>
       <div class="page-intro motion-intro">
-        <div><h1>キャラモーション確認</h1>
+        <h1>キャラモーション確認</h1>
         <span id="load-status" class="status-tag" role="status">LOADING</span>
       </div>
 
@@ -54,11 +54,6 @@
       <input id="local-files" type="file" multiple accept=".png,.imgcut,.mamodel,.maanim" hidden>
     </form>
 
-    <p class="url-help">
-      URL指定: <code>?unit=000-f</code>　
-      <code>f / c / s / u</code> = 第1 / 第2 / 第3 / 第4形態
-    </p>
-
     <section class="viewer">
       <div class="viewer-heading">
         <div>
@@ -67,7 +62,6 @@
         </div>
         <div>
           <strong id="motion-name">移動 / MOVE</strong>
-          <small id="motion-description">歩行サイクルを繰り返します</small>
         </div>
       </div>
 
@@ -75,12 +69,8 @@
         <canvas
           id="motion-canvas"
           aria-label="にゃんこモーションのプレビュー"
-          aria-describedby="canvas-controls-help"
         ></canvas>
       </div>
-      <p id="canvas-controls-help" class="canvas-help">
-        ドラッグで移動・ホイールで拡大縮小／タッチは1本指で移動・2本指でピンチ
-      </p>
 
       <div class="motion-buttons" aria-label="モーション選択">
         <button type="button" data-motion="move" class="is-active" aria-pressed="true">1. 移動</button>
@@ -130,15 +120,6 @@
       </div>
     </section>
 
-    <section class="data-info">
-      <h2>読み込みデータ</h2>
-      <dl>
-        <div><dt>imgcut</dt><dd><span id="cut-count">—</span> 分割</dd></div>
-        <div><dt>mamodel</dt><dd><span id="part-count">—</span> パーツ</dd></div>
-        <div><dt>maanim</dt><dd><span id="motion-frame-count">—</span> フレーム</dd></div>
-        <div><dt>source</dt><dd><code id="source-name">—</code></dd></div>
-      </dl>
-    </section>
     </main>
     <footer class="site-footer">KBC</footer>
   </div>
