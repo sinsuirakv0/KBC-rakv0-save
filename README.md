@@ -28,4 +28,4 @@ cd D:\KBC\KBC-rakv0-lab
 - `public/motion.css`: キャラモーション確認のCSS
 - `public/assets/kbc-logo.png`: KBCロゴ
 
-ブラウザ用JavaScriptは実行アプリの`/_lab/`から配信されます。privateキャラ素材は管理キー付きAPIがGitHubから取得し、GitHub tokenをブラウザへ渡しません。
+ブラウザ用JavaScriptは実行アプリの`/_lab/`から配信されます。privateキャラ素材はサーバーAPIがGitHubから取得し、GitHub tokenをブラウザへ渡しません。
