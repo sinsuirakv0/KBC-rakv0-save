@@ -1,10 +1,14 @@
 ﻿# KBC-rakv0-save
 
-KBCローカルツールの最小フロントエンドです。
+KBCツールの最小公開フロントエンドです。
 
 この公開リポジトリにはHTML、CSS、KBCロゴだけを置きます。セーブ解析、ランキング認証・署名、可読JavaScript、ゲーム素材、解析資料は含みません。
 
-単体では動作しません。隣接するローカル専用の`KBC-rakv0-lab`から起動してください。
+実行用バックエンドと難読化済みJavaScriptは、非公開`KBC-rakv0-save-app`からVercelへ配備します。
+
+本番URL: <https://kbc-rakv0-save.vercel.app>
+
+ローカル開発では、隣接する`KBC-rakv0-lab`から起動します。
 
 ```powershell
 cd D:\KBC\KBC-rakv0-lab
@@ -20,6 +24,8 @@ cd D:\KBC\KBC-rakv0-lab
 - `public/nyanko-club-forgery.html`: クラブ偽造のHTML
 - `public/nyanko-club-forgery.css`: クラブ偽造のCSS
 - `public/ranking.html`: ランキング調査のHTML
+- `public/motion.html`: キャラモーション確認のHTML
+- `public/motion.css`: キャラモーション確認のCSS
 - `public/assets/kbc-logo.png`: KBCロゴ
 
-ブラウザ用JavaScriptはlocalhostの`/_lab/`から配信されます。
+ブラウザ用JavaScriptは実行アプリの`/_lab/`から配信されます。privateキャラ素材は管理キー付きAPIがGitHubから取得し、GitHub tokenをブラウザへ渡しません。

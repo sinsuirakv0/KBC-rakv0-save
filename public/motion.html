@@ -1,0 +1,133 @@
+﻿<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="にゃんこキャラクターの imgcut・mamodel・maanim を公式準拠のWebGL描画で再生するKBCツール">
+  <title>キャラモーション確認 | KBC</title>
+  <link rel="stylesheet" href="/motion.css">
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <h1>キャラモーション確認</h1>
+        <p>PNG + imgcut + mamodel + maanim を公式準拠のWebGL描画で再生します。</p>
+      </div>
+      <span id="load-status" class="status" role="status">LOADING</span>
+    </header>
+
+    <form id="unit-form" class="unit-form">
+      <label>
+        管理キー
+        <input id="admin-key" type="password" autocomplete="current-password" placeholder="管理者のみ入力">
+      </label>
+      <label>
+        ユニットID
+        <input id="unit-id" name="unit-id" type="text" inputmode="numeric" pattern="[0-9]+" value="000" required>
+      </label>
+      <label>
+        形態
+        <select id="form-select" name="form">
+          <option value="f">f / 第1形態</option>
+          <option value="c">c / 第2形態</option>
+          <option value="s">s / 第3形態</option>
+          <option value="u">u / 第4形態</option>
+        </select>
+      </label>
+      <button type="submit">private素材を読み込む</button>
+      <button id="local-load" type="button" class="secondary">ローカルファイル</button>
+      <input id="local-files" type="file" multiple accept=".png,.imgcut,.mamodel,.maanim" hidden>
+    </form>
+
+    <p class="url-help">
+      URL指定: <code>?unit=000-f</code>　
+      <code>f / c / s / u</code> = 第1 / 第2 / 第3 / 第4形態
+    </p>
+
+    <section class="viewer">
+      <div class="viewer-heading">
+        <div>
+          <h2 id="character-name">ユニット 0</h2>
+          <p id="character-note">第1形態 / 000_f</p>
+        </div>
+        <div>
+          <strong id="motion-name">移動 / MOVE</strong>
+          <small id="motion-description">歩行サイクルを繰り返します</small>
+        </div>
+      </div>
+
+      <div class="canvas-wrap">
+        <canvas
+          id="motion-canvas"
+          aria-label="にゃんこモーションのプレビュー"
+          aria-describedby="canvas-controls-help"
+        ></canvas>
+      </div>
+      <p id="canvas-controls-help" class="canvas-help">
+        ドラッグで移動・ホイールで拡大縮小／タッチは1本指で移動・2本指でピンチ
+      </p>
+
+      <div class="motion-buttons" aria-label="モーション選択">
+        <button type="button" data-motion="move" class="is-active" aria-pressed="true">1. 移動</button>
+        <button type="button" data-motion="idle" aria-pressed="false">2. 待機</button>
+        <button type="button" data-motion="attack" aria-pressed="false">3. 攻撃</button>
+        <button type="button" data-motion="knockback" aria-pressed="false">4. ノックバック</button>
+      </div>
+
+      <div class="transport">
+        <button id="play-button" type="button" aria-label="モーションを一時停止">
+          <span id="play-icon" aria-hidden="true">Ⅱ</span>
+          <span id="play-text">一時停止</span>
+        </button>
+        <label class="timeline-label">
+          <span id="frame-readout">FRAME 00 / 16</span>
+          <input id="timeline" type="range" min="0" max="16" value="0" step="1" aria-label="再生フレーム">
+        </label>
+        <label>
+          速度
+          <select id="speed-select">
+            <option value="0.25">0.25×</option>
+            <option value="0.5">0.50×</option>
+            <option value="1" selected>1.00×</option>
+            <option value="1.5">1.50×</option>
+            <option value="2">2.00×</option>
+          </select>
+        </label>
+        <label>
+          補間FPS
+          <select id="frame-rate-select">
+            <option value="30" selected>30 / 本家</option>
+            <option value="60">60</option>
+            <option value="90">90</option>
+            <option value="120">120</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="display-settings">
+        <label>
+          表示倍率 <output id="scale-readout" for="scale-input">100%</output>
+          <input id="scale-input" type="range" min="0.25" max="4" step="0.05" value="1">
+        </label>
+        <label><input id="flip-input" type="checkbox"> 左右反転</label>
+        <label><input id="guide-input" type="checkbox" checked> 原点ガイド</label>
+        <button id="view-reset" type="button" class="secondary">位置と倍率を戻す</button>
+      </div>
+    </section>
+
+    <section class="data-info">
+      <h2>読み込みデータ</h2>
+      <dl>
+        <div><dt>imgcut</dt><dd><span id="cut-count">—</span> 分割</dd></div>
+        <div><dt>mamodel</dt><dd><span id="part-count">—</span> パーツ</dd></div>
+        <div><dt>maanim</dt><dd><span id="motion-frame-count">—</span> フレーム</dd></div>
+        <div><dt>source</dt><dd><code id="source-name">—</code></dd></div>
+      </dl>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="alert"></div>
+  <script type="module" src="/_lab/motion-app.js"></script>
+</body>
+</html>
